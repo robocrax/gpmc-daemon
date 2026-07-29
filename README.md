@@ -1,5 +1,5 @@
 # System Architecture
-
+```
                                   +------------------------------------+
                                   |        Container Environment       |
                                   |                                    |
@@ -15,6 +15,4 @@
                                   +------------------------------------+
                                              │               │
                                   ./data Volume        ./media Volume
-
-
-                                  
+```
