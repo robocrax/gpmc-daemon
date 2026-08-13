@@ -5,6 +5,7 @@ import sqlite3
 import threading
 import subprocess
 import urllib.parse
+import hashlib
 from datetime import datetime
 from collections import deque
 from typing import Optional, List, Dict
@@ -22,10 +23,12 @@ pillow_heif.register_heif_opener()
 app = FastAPI(title="GPMC Controller")
 
 DB_PATH = "/config/gpmc.db"
+CACHE_DIR = "/tmp/gpmc_cache"  # Ephemeral container cache - wiped on restart
 SESSION_TOKEN = os.urandom(16).hex()
 DB_CORRUPT = False
 DB_ERROR_MSG = ""
 
+# In-Memory Ephemeral Log Buffer (Profile ID -> deque of log entries, max 200)
 IN_MEMORY_LOGS: Dict[int, deque] = {}
 
 def check_db_file_exists():
@@ -38,6 +41,7 @@ def init_db():
     global DB_CORRUPT, DB_ERROR_MSG
     os.makedirs("/config", exist_ok=True)
     os.makedirs("/sync", exist_ok=True)
+    os.makedirs(CACHE_DIR, exist_ok=True)
     
     try:
         conn = sqlite3.connect(DB_PATH)
@@ -78,7 +82,6 @@ def init_db():
         );
         """)
         
-        # Check column migration for auto_album
         cursor.execute("PRAGMA table_info(profiles)")
         columns = [column[1] for column in cursor.fetchall()]
         if "auto_album" not in columns:
@@ -305,7 +308,6 @@ def process_profile(profile_id: int):
             "--threads", str(p["threads"])
         ]
         
-        # Only pass --album AUTO if auto_album setting is enabled
         if p["auto_album"]:
             cmd.extend(["--album", "AUTO"])
 
@@ -512,22 +514,35 @@ def serve_media(path: str, auth=Depends(verify_auth)):
     if not os.path.exists(full_path):
         raise HTTPException(status_code=404, detail="Media not found")
 
+    mtime = os.path.getmtime(full_path)
+    hash_key = hashlib.md5(f"{full_path}_{mtime}".encode()).hexdigest()
+    cache_path = os.path.join(CACHE_DIR, f"{hash_key}.jpg")
+
+    # Serve low-res thumbnail from ephemeral container /tmp/gpmc_cache if available
+    if os.path.exists(cache_path):
+        return FileResponse(cache_path, media_type="image/jpeg")
+
     ext = os.path.splitext(full_path)[1].lower()
     
-    if ext in [".heic", ".heif"]:
-        try:
-            im = Image.open(full_path)
-            buf = io.BytesIO()
-            im.save(buf, format="JPEG", quality=75)
-            buf.seek(0)
-            return Response(content=buf.getvalue(), media_type="image/jpeg")
-        except Exception:
+    try:
+        im = None
+        if ext in [".heic", ".heif"]:
             try:
+                im = Image.open(full_path)
+            except Exception:
                 res = subprocess.run(["convert", full_path, "jpg:-"], capture_output=True, timeout=5)
                 if res.returncode == 0 and res.stdout:
-                    return Response(content=res.stdout, media_type="image/jpeg")
-            except Exception:
-                pass
+                    im = Image.open(io.BytesIO(res.stdout))
+        elif ext not in VIDEO_EXTENSIONS:
+            im = Image.open(full_path)
+
+        if im:
+            im.thumbnail((192, 192))
+            im = im.convert("RGB")
+            im.save(cache_path, "JPEG", quality=70)
+            return FileResponse(cache_path, media_type="image/jpeg")
+    except Exception:
+        pass
 
     return FileResponse(full_path)
 
