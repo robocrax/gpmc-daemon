@@ -10,7 +10,6 @@
       90%, 100% { transform: rotate(180deg); }
     }
 
-    /* Natural Scatterized Particle Stream Animation */
     @keyframes particleStream {
       0% { transform: translate3d(0, -100%, 0); opacity: 0; }
       50% { opacity: 0.85; }
@@ -22,7 +21,6 @@
       animation: hourglassRotate 6s ease-in-out infinite;
     }
 
-    /* Upload Icon Overlay with Staggered Rain Streams */
     .upload-overlay {
       position: absolute;
       inset: 0;
@@ -53,7 +51,6 @@
       will-change: transform;
     }
 
-    /* Failure Red Overlay */
     .overlay-error {
       position: absolute;
       inset: 0;
@@ -67,7 +64,11 @@
       font-weight: bold;
     }
 
-    /* Zero-Shift Custom Scrollbar for Tray */
+    .media-card {
+      transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+      will-change: width, transform, opacity;
+    }
+
     .custom-scrollbar::-webkit-scrollbar {
       height: 6px;
     }
@@ -197,6 +198,10 @@
             <label class="flex items-center gap-2 text-sm text-slate-400 cursor-not-allowed">
               <input type="checkbox" id="purge" checked disabled class="w-4 h-4 text-indigo-600/50 rounded bg-slate-900 border-slate-700 cursor-not-allowed">
               Purge processed media from local disk after upload
+            </label>
+            <label class="flex items-center gap-2 text-sm cursor-pointer">
+              <input type="checkbox" id="auto_album" checked class="w-4 h-4 text-indigo-600 rounded bg-slate-900 border-slate-700">
+              Automatically create an album for a subfolder
             </label>
             <label class="flex items-center gap-2 text-sm cursor-pointer">
               <input type="checkbox" id="saver" class="w-4 h-4 text-indigo-600 rounded bg-slate-900 border-slate-700">
@@ -526,7 +531,7 @@
             </div>
           </div>
 
-          <!-- Fixed Height Preview Tray with Natural Stream Particles -->
+          <!-- Fixed Height Preview Tray -->
           <div class="media-tray bg-slate-900/90 border border-slate-800 rounded-xl p-3 flex items-center justify-between relative ${isSingleProfile ? 'min-h-[135px] flex-wrap' : 'min-h-[135px] h-[135px] overflow-hidden'}">
             <div class="custom-scrollbar flex items-center gap-3 w-full ${isSingleProfile ? 'flex-wrap' : 'overflow-x-auto py-1 px-1'}">
               ${visibleMedia.length > 0 ? visibleMedia.map((m, mIdx) => {
@@ -568,7 +573,7 @@
             ` : ''}
           </div>
 
-          <!-- Optional Inline Console Box without Emoji -->
+          <!-- Optional Inline Console Box -->
           ${currentSettings.ui_console_show === true ? `
             <div onclick="openLogs(${p.id}, '${p.email}')" class="bg-slate-950 border border-slate-800 hover:border-slate-700 rounded-xl p-2.5 cursor-pointer transition group">
               <div class="flex justify-between items-center text-[10px] text-slate-500 mb-1">
@@ -610,6 +615,7 @@
       document.getElementById('threads').value = p.threads || 3;
       document.getElementById('max_retries').value = p.max_retries || 3;
       document.getElementById('purge').checked = true;
+      document.getElementById('auto_album').checked = p.auto_album !== false;
       document.getElementById('saver').checked = p.saver;
 
       document.getElementById('modal').classList.remove('hidden');
@@ -622,6 +628,7 @@
       document.getElementById('threads').value = 3;
       document.getElementById('max_retries').value = 3;
       document.getElementById('purge').checked = true;
+      document.getElementById('auto_album').checked = true;
       document.getElementById('modal').classList.remove('hidden');
     }
 
@@ -681,6 +688,7 @@
         threads: parseInt(document.getElementById('threads').value),
         max_retries: parseInt(document.getElementById('max_retries').value),
         purge: true,
+        auto_album: document.getElementById('auto_album').checked,
         saver: document.getElementById('saver').checked
       };
 
