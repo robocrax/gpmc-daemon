@@ -19,7 +19,7 @@ Built with a fast Python/FastAPI backend and a modern Tailwind CSS frontend, it 
 <br />
 
 > **Profile Settings**
-> <img width="590" height="577" alt="image" src="https://github.com/user-attachments/assets/29f25678-16fc-44a7-9abd-f2f1ed2c4cd5" />
+> <img width="1044" height="600" alt="image" src="https://github.com/user-attachments/assets/f149dc84-1dcc-47a9-8a0a-c6fa79aa2983" />
 > *Configure upload delays, concurrent threads, and webhook alerts.*
 
 ---
