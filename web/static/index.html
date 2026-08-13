@@ -70,14 +70,12 @@
       will-change: width, transform, opacity;
     }
 
-    /* Delete Button Hover/Touch State */
     .delete-media-btn {
       opacity: 0;
       transition: opacity 0.2s ease, transform 0.2s ease;
       pointer-events: none;
     }
 
-    /* Always visible on mobile/touch devices OR on desktop hover */
     @media (hover: none), (pointer: coarse) {
       .delete-media-btn {
         opacity: 1 !important;
@@ -271,10 +269,16 @@
             <input type="checkbox" id="setting-console-show" class="w-4 h-4 text-indigo-600 rounded bg-slate-900 border-slate-700">
             Show Console Logs Box on Profile Cards
           </label>
+          
+          <!-- Conditionally shown only if ALLOW_UNREDACT_AUTH=true in .env -->
+          <label id="setting-unredact-group" class="hidden flex items-center gap-2 text-sm cursor-pointer border-t border-slate-700/80 pt-2 mt-1">
+            <input type="checkbox" id="setting-allow-unredact" class="w-4 h-4 text-indigo-600 rounded bg-slate-900 border-slate-700">
+            <span class="text-amber-300 font-medium">Allow unredacting Auth Data in Edit Profile</span>
+          </label>
         </div>
 
         <div class="flex justify-between items-center mt-6 pt-4 border-t border-slate-700">
-          <span class="text-xs text-slate-500 font-mono">GPMC Controller v1.0</span>
+          <span class="text-xs text-slate-500 font-mono">GPMC Controller v1.1</span>
           <div class="flex gap-3">
             <button type="button" onclick="closeSettingsModal()" class="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-md text-sm">Cancel</button>
             <button type="submit" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 rounded-md text-sm font-medium">Save Settings</button>
@@ -416,6 +420,14 @@
         currentSettings = await res.json();
         const delayMin = currentSettings.sync_interval_min || 5;
         nextRunTimestamp = Date.now() + (delayMin * 60 * 1000);
+
+        // Show/hide unredact option depending on ALLOW_UNREDACT_AUTH env var
+        const unredactGroup = document.getElementById('setting-unredact-group');
+        if (currentSettings.allow_unredact_env) {
+          unredactGroup.classList.remove('hidden');
+        } else {
+          unredactGroup.classList.add('hidden');
+        }
       }
     }
 
@@ -445,6 +457,7 @@
       document.getElementById('setting-interval').value = currentSettings.sync_interval_min || 5;
       document.getElementById('setting-webhook').value = currentSettings.webhook_url || '';
       document.getElementById('setting-console-show').checked = currentSettings.ui_console_show === true;
+      document.getElementById('setting-allow-unredact').checked = currentSettings.allow_unredact_auth_user === true;
       document.getElementById('settings-modal').classList.remove('hidden');
     }
 
@@ -456,6 +469,7 @@
         sync_interval_min: parseInt(document.getElementById('setting-interval').value),
         webhook_url: document.getElementById('setting-webhook').value,
         ui_console_show: document.getElementById('setting-console-show').checked,
+        allow_unredact_auth_user: document.getElementById('setting-allow-unredact').checked,
         password: document.getElementById('setting-password').value
       };
 
@@ -516,7 +530,6 @@
       }
     }
 
-    // Drag and Drop Event Handlers
     function handleDragOver(e, cardEl) {
       e.preventDefault();
       cardEl.classList.add('drop-active');
@@ -573,15 +586,12 @@
              ondrop="handleDrop(event, ${p.id}, this)"
              class="profile-card bg-slate-800 border border-slate-700 p-4 sm:p-5 rounded-2xl flex flex-col gap-3 shadow-xl transition-all duration-300">
           
-          <!-- Mobile Friendly Header Row -->
           <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div class="min-w-0">
               <div class="font-bold text-lg text-indigo-300 truncate leading-snug">${p.email}</div>
             </div>
 
-            <!-- Action Buttons Row -->
             <div class="flex items-center gap-2 flex-wrap sm:flex-nowrap shrink-0">
-              <!-- Web Upload Button -->
               <label class="h-8 bg-slate-700 hover:bg-slate-600 text-slate-200 px-3 rounded-lg text-xs font-semibold transition flex items-center justify-center gap-1 cursor-pointer border border-slate-600">
                 ➕ Upload
                 <input type="file" multiple accept="image/*,video/*" class="hidden" onchange="uploadFilesToProfile(${p.id}, this.files)">
@@ -601,7 +611,6 @@
             </div>
           </div>
 
-          <!-- Fixed Height Preview Tray -->
           <div class="media-tray bg-slate-900/90 border border-slate-800 rounded-xl p-3 flex items-center justify-between relative ${isSingleProfile ? 'min-h-[135px] flex-wrap' : 'min-h-[135px] h-[135px] overflow-hidden'}">
             <div class="custom-scrollbar flex items-center gap-3 w-full ${isSingleProfile ? 'flex-wrap' : 'overflow-x-auto py-1 px-1'}">
               ${visibleMedia.length > 0 ? visibleMedia.map((m, mIdx) => {
@@ -610,7 +619,6 @@
 
                 return `
                   <div id="media-${safeId}" class="media-card relative shrink-0 w-24 h-24 rounded-xl overflow-hidden border border-slate-700 bg-slate-950 shadow-md group">
-                    <!-- Hover/Touch Dustbin Delete Button -->
                     <button onclick="deleteMediaFile('${m.id}')" title="Delete file from sync" class="delete-media-btn absolute top-1 right-1 bg-rose-600 hover:bg-rose-500 text-white w-6 h-6 rounded-full flex items-center justify-center z-30 shadow-md text-xs">
                       🗑️
                     </button>
@@ -648,7 +656,6 @@
             ` : ''}
           </div>
 
-          <!-- Optional Inline Console Box -->
           ${currentSettings.ui_console_show === true ? `
             <div onclick="openLogs(${p.id}, '${p.email}')" class="bg-slate-950 border border-slate-800 hover:border-slate-700 rounded-xl p-2.5 cursor-pointer transition group">
               <div class="flex justify-between items-center text-[10px] text-slate-500 mb-1">
@@ -671,7 +678,13 @@
 
       document.getElementById('edit-profile-id').value = p.id;
       document.getElementById('modal-title').innerText = `Edit Profile (${p.email})`;
-      document.getElementById('auth_data').value = '';
+
+      // Populate raw auth_data ONLY if env var AND user toggle are both enabled
+      if (p.auth_data && p.auth_data !== "[REDACTED]") {
+        document.getElementById('auth_data').value = p.auth_data;
+      } else {
+        document.getElementById('auth_data').value = '';
+      }
 
       document.getElementById('folder_name').value = p.folder_name;
       document.getElementById('heartbeat').value = p.heartbeat || '';

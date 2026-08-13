@@ -23,10 +23,13 @@ pillow_heif.register_heif_opener()
 app = FastAPI(title="GPMC Controller")
 
 DB_PATH = "/config/gpmc.db"
-CACHE_DIR = "/tmp/gpmc_cache"  # Ephemeral container cache
+CACHE_DIR = "/tmp/gpmc_cache"
 SESSION_TOKEN = os.urandom(16).hex()
 DB_CORRUPT = False
 DB_ERROR_MSG = ""
+
+# Environment variable check for Auth Unredact capability
+ENV_ALLOW_UNREDACT = os.getenv("ALLOW_UNREDACT_AUTH", "false").lower() in ("true", "1", "yes")
 
 IN_MEMORY_LOGS: Dict[int, deque] = {}
 
@@ -89,6 +92,7 @@ def init_db():
         cursor.execute("INSERT OR IGNORE INTO settings (key, value) VALUES ('sync_interval_min', '5')")
         cursor.execute("INSERT OR IGNORE INTO settings (key, value) VALUES ('webhook_url', '')")
         cursor.execute("INSERT OR IGNORE INTO settings (key, value) VALUES ('ui_console_show', 'false')")
+        cursor.execute("INSERT OR IGNORE INTO settings (key, value) VALUES ('allow_unredact_auth_user', 'false')")
         
         conn.commit()
         conn.close()
@@ -148,6 +152,7 @@ class SettingsUpdate(BaseModel):
     sync_interval_min: int
     webhook_url: Optional[str] = ""
     ui_console_show: bool = False
+    allow_unredact_auth_user: bool = False
     password: Optional[str] = ""
 
 class LoginRequest(BaseModel):
@@ -189,12 +194,14 @@ def extract_email(auth_data: str) -> str:
 def obfuscate_str(text: str) -> str:
     if not text:
         return ""
-    text = text.replace(/--auth_data\s+[^\s]+/g, '--auth_data [REDACTED_AUTH_DATA]')
-    text = text.replace(/Token=[^&]+/, 'Token=[REDACTED_TOKEN]')
-    text = text.replace(/client_sig=[^&]+/, 'client_sig=[REDACTED_SIG]')
+    import re
+    text = re.sub(r'--auth_data\s+[^\s]+', '--auth_data [REDACTED_AUTH_DATA]', text)
+    text = re.sub(r'Token=[^&]+', 'Token=[REDACTED_TOKEN]', text)
+    text = re.sub(r'client_sig=[^&]+', 'client_sig=[REDACTED_SIG]', text)
     return text
 
 def add_log(profile_id: int, message: str):
+    # Logs are ALWAYS strictly redacted
     clean_msg = obfuscate_str(message)
     if profile_id not in IN_MEMORY_LOGS:
         IN_MEMORY_LOGS[profile_id] = deque(maxlen=200)
@@ -472,6 +479,8 @@ def get_settings(auth=Depends(verify_auth)):
         "sync_interval_min": int(get_setting("sync_interval_min", "5")),
         "webhook_url": get_setting("webhook_url", ""),
         "ui_console_show": get_setting("ui_console_show", "false") == "true",
+        "allow_unredact_env": ENV_ALLOW_UNREDACT,
+        "allow_unredact_auth_user": get_setting("allow_unredact_auth_user", "false") == "true",
         "has_password": get_setting("ui_password_hash") != ""
     }
 
@@ -480,6 +489,8 @@ def save_settings(payload: SettingsUpdate, auth=Depends(verify_auth)):
     set_setting("sync_interval_min", payload.sync_interval_min)
     set_setting("webhook_url", payload.webhook_url or "")
     set_setting("ui_console_show", str(payload.ui_console_show).lower())
+    if ENV_ALLOW_UNREDACT:
+        set_setting("allow_unredact_auth_user", str(payload.allow_unredact_auth_user).lower())
     if payload.password:
         hashed = bcrypt.hashpw(payload.password.encode(), bcrypt.gensalt()).decode()
         set_setting("ui_password_hash", hashed)
@@ -490,12 +501,15 @@ def get_profiles(auth=Depends(verify_auth)):
     conn = get_db()
     rows = conn.execute("SELECT * FROM profiles ORDER BY priority ASC, id ASC").fetchall()
     conn.close()
-    
+
+    user_unredact = get_setting("allow_unredact_auth_user", "false") == "true"
+    can_unredact = ENV_ALLOW_UNREDACT and user_unredact
+
     profiles = []
     for r in rows:
         p = dict(r)
-        # Redact Auth Data completely
-        p["auth_data"] = "[REDACTED]"
+        if not can_unredact:
+            p["auth_data"] = "[REDACTED]"
         
         folder = f"/sync/{p['folder_name']}"
         valid_files, _ = scan_media_files(folder)
