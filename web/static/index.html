@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>GPMC Controller</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
@@ -21,7 +22,6 @@
       animation: hourglassRotate 6s ease-in-out infinite;
     }
 
-    /* High-Contrast Upload Icon Overlay */
     .upload-overlay {
       position: absolute;
       inset: 0;
@@ -30,7 +30,7 @@
       z-index: 15;
       display: flex;
       align-items: center;
-      justify-content: justify;
+      justify-content: center;
       overflow: hidden;
       will-change: transform;
     }
@@ -43,7 +43,6 @@
       z-index: 20;
     }
 
-    /* Natural White Scatter Rain Particles */
     .stream-particle {
       position: absolute;
       width: 2px;
@@ -53,7 +52,6 @@
       will-change: transform;
     }
 
-    /* Red Cross Failure Overlay */
     .overlay-error {
       position: absolute;
       inset: 0;
@@ -70,6 +68,30 @@
     .media-card {
       transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
       will-change: width, transform, opacity;
+    }
+
+    /* Delete Button Hover/Touch State */
+    .delete-media-btn {
+      opacity: 0;
+      transition: opacity 0.2s ease, transform 0.2s ease;
+      pointer-events: none;
+    }
+
+    /* Always visible on mobile/touch devices OR on desktop hover */
+    @media (hover: none), (pointer: coarse) {
+      .delete-media-btn {
+        opacity: 1 !important;
+        pointer-events: auto !important;
+      }
+    }
+    .media-card:hover .delete-media-btn {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .drop-active {
+      border-color: #6366f1 !important;
+      background-color: rgba(99, 102, 241, 0.15) !important;
     }
 
     .custom-scrollbar::-webkit-scrollbar {
@@ -124,23 +146,23 @@
     </div>
   </div>
 
-  <div class="max-w-5xl mx-auto py-10 px-4">
+  <div class="max-w-5xl mx-auto py-6 sm:py-10 px-4">
     <!-- Main Header -->
-    <div class="flex justify-between items-center mb-8 border-b border-slate-700 pb-4 h-12">
+    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 sm:mb-8 border-b border-slate-700 pb-4 gap-4">
       <div>
         <h1 class="text-2xl font-bold tracking-tight text-white">GPMC Controller</h1>
         <p id="header-subtitle" class="text-xs text-slate-400 mt-0.5 flex items-center gap-1 font-mono">
           Automated Google Photos Sync Manager
         </p>
       </div>
-      <div class="flex items-center gap-2 h-9">
-        <button onclick="openModal()" class="h-9 bg-indigo-600 hover:bg-indigo-500 text-white font-medium px-4 rounded-lg transition text-xs flex items-center justify-center">
+      <div class="flex items-center gap-2 w-full sm:w-auto justify-end">
+        <button onclick="openModal()" class="h-9 bg-indigo-600 hover:bg-indigo-500 text-white font-medium px-3.5 rounded-lg transition text-xs flex items-center justify-center">
           + New Sync Profile
         </button>
-        <button onclick="openSettingsModal()" title="Settings" class="h-9 w-9 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg text-slate-300 hover:text-white transition flex items-center justify-center text-sm">
+        <button onclick="openSettingsModal()" title="Settings" class="h-9 w-9 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg text-slate-300 hover:text-white transition flex items-center justify-center text-sm shrink-0">
           ⚙️
         </button>
-        <button id="logout-btn" onclick="logout()" title="Logout" class="hidden h-9 w-9 bg-slate-800 hover:bg-rose-950/60 border border-slate-700 rounded-lg text-slate-400 hover:text-rose-300 transition items-center justify-center text-sm">
+        <button id="logout-btn" onclick="logout()" title="Logout" class="hidden h-9 w-9 bg-slate-800 hover:bg-rose-950/60 border border-slate-700 rounded-lg text-slate-400 hover:text-rose-300 transition items-center justify-center text-sm shrink-0">
           🚪
         </button>
       </div>
@@ -170,7 +192,7 @@
               Auth Data
               <a href="https://github.com/xob0t/gpmc#auth_data-where-do-i-get-mine" target="_blank" class="text-indigo-400 hover:underline text-xs ml-2">Where do I get mine?</a>
             </label>
-            <textarea id="auth_data" rows="3" oninput="extractAndroidId()" placeholder="Leave blank to keep existing auth data" class="w-full bg-slate-900 border border-slate-700 rounded-md p-2 text-white text-xs font-mono focus:ring-2 focus:ring-indigo-500 outline-none"></textarea>
+            <textarea id="auth_data" rows="3" oninput="extractAndroidId()" placeholder="•••••••• (Leave blank to keep existing auth_data)" class="w-full bg-slate-900 border border-slate-700 rounded-md p-2 text-white text-xs font-mono focus:ring-2 focus:ring-indigo-500 outline-none"></textarea>
           </div>
 
           <div>
@@ -221,7 +243,7 @@
     </div>
   </div>
 
-  <!-- Settings Modal with Conditional Focus Tooltip -->
+  <!-- Settings Modal -->
   <div id="settings-modal" onclick="handleBackdropClick(event, 'settings-modal', closeSettingsModal)" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden flex items-center justify-center p-4 z-50">
     <div class="bg-slate-800 rounded-xl p-6 w-full max-w-lg border border-slate-700 shadow-2xl relative">
       <h2 class="text-xl font-bold mb-4 flex items-center gap-2">⚙️ Controller Settings</h2>
@@ -248,10 +270,6 @@
           <label class="flex items-center gap-2 text-sm cursor-pointer">
             <input type="checkbox" id="setting-console-show" class="w-4 h-4 text-indigo-600 rounded bg-slate-900 border-slate-700">
             Show Console Logs Box on Profile Cards
-          </label>
-          <label class="flex items-center gap-2 text-sm cursor-pointer">
-            <input type="checkbox" id="setting-obfuscate-auth" class="w-4 h-4 text-indigo-600 rounded bg-slate-900 border-slate-700">
-            Hide Auth Data / Tokens in UI & Logs
           </label>
         </div>
 
@@ -427,7 +445,6 @@
       document.getElementById('setting-interval').value = currentSettings.sync_interval_min || 5;
       document.getElementById('setting-webhook').value = currentSettings.webhook_url || '';
       document.getElementById('setting-console-show').checked = currentSettings.ui_console_show === true;
-      document.getElementById('setting-obfuscate-auth').checked = currentSettings.obfuscate_auth !== false;
       document.getElementById('settings-modal').classList.remove('hidden');
     }
 
@@ -439,7 +456,6 @@
         sync_interval_min: parseInt(document.getElementById('setting-interval').value),
         webhook_url: document.getElementById('setting-webhook').value,
         ui_console_show: document.getElementById('setting-console-show').checked,
-        obfuscate_auth: document.getElementById('setting-obfuscate-auth').checked,
         password: document.getElementById('setting-password').value
       };
 
@@ -479,6 +495,46 @@
       parent.appendChild(badge);
     }
 
+    async function uploadFilesToProfile(profileId, files) {
+      if (!files || files.length === 0) return;
+      const formData = new FormData();
+      for (let i = 0; i < files.length; i++) {
+        formData.append('files', files[i]);
+      }
+      
+      await fetch(`/api/profiles/${profileId}/upload`, {
+        method: 'POST',
+        body: formData
+      });
+      loadProfiles();
+    }
+
+    async function deleteMediaFile(path) {
+      if (confirm("Delete this media file from local sync queue?")) {
+        await fetch(`/api/media/${path}`, { method: 'DELETE' });
+        loadProfiles();
+      }
+    }
+
+    // Drag and Drop Event Handlers
+    function handleDragOver(e, cardEl) {
+      e.preventDefault();
+      cardEl.classList.add('drop-active');
+    }
+
+    function handleDragLeave(e, cardEl) {
+      e.preventDefault();
+      cardEl.classList.remove('drop-active');
+    }
+
+    function handleDrop(e, profileId, cardEl) {
+      e.preventDefault();
+      cardEl.classList.remove('drop-active');
+      if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+        uploadFilesToProfile(profileId, e.dataTransfer.files);
+      }
+    }
+
     async function loadProfiles() {
       const res = await fetch('/api/profiles');
       if (res.status === 503) {
@@ -511,23 +567,34 @@
         const remainingCount = (!isSingleProfile && mediaList.length > 10) ? mediaList.length - 10 : 0;
 
         return `
-        <div data-id="${p.id}" class="profile-card bg-slate-800 border border-slate-700 p-5 rounded-2xl flex flex-col gap-3 shadow-xl transition-all duration-300">
-          <!-- Clean Header Row: Email on Left -->
-          <div class="flex items-center justify-between gap-4 h-9">
-            <div class="flex items-center gap-2.5 min-w-0 h-9">
-              <div class="min-w-0">
-                <div class="font-bold text-lg text-indigo-300 truncate leading-snug">${p.email}</div>
-              </div>
+        <div data-id="${p.id}" 
+             ondragover="handleDragOver(event, this)" 
+             ondragleave="handleDragLeave(event, this)" 
+             ondrop="handleDrop(event, ${p.id}, this)"
+             class="profile-card bg-slate-800 border border-slate-700 p-4 sm:p-5 rounded-2xl flex flex-col gap-3 shadow-xl transition-all duration-300">
+          
+          <!-- Mobile Friendly Header Row -->
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div class="min-w-0">
+              <div class="font-bold text-lg text-indigo-300 truncate leading-snug">${p.email}</div>
             </div>
 
-            <!-- Action Buttons -->
-            <div class="flex items-center gap-2 shrink-0 h-8">
+            <!-- Action Buttons Row -->
+            <div class="flex items-center gap-2 flex-wrap sm:flex-nowrap shrink-0">
+              <!-- Web Upload Button -->
+              <label class="h-8 bg-slate-700 hover:bg-slate-600 text-slate-200 px-3 rounded-lg text-xs font-semibold transition flex items-center justify-center gap-1 cursor-pointer border border-slate-600">
+                ➕ Upload
+                <input type="file" multiple accept="image/*,video/*" class="hidden" onchange="uploadFilesToProfile(${p.id}, this.files)">
+              </label>
+
               <button onclick="syncNow(${p.id})" class="h-8 bg-indigo-600/30 hover:bg-indigo-600 text-indigo-300 hover:text-white px-3 rounded-lg text-xs font-semibold transition flex items-center justify-center gap-1 border border-indigo-700/50">
                 ⚡ Sync Now
               </button>
+              
               <button onclick="editProfile(${p.id})" title="Edit Profile" class="h-8 w-8 text-slate-400 hover:text-white hover:bg-slate-700 rounded-lg transition border border-slate-700 flex items-center justify-center text-xs">
                 ✏️
               </button>
+              
               <button onclick="promptDelete(${p.id}, '${p.folder_name}')" title="Delete Profile" class="h-8 w-8 text-rose-400 hover:bg-rose-950/60 rounded-lg transition border border-rose-900/50 flex items-center justify-center">
                 <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24"><path d="M3 6h18v2H3V6zm2 3h14l-1 12H6L5 9zm5-5h4v2h-4V4z"/></svg>
               </button>
@@ -542,7 +609,12 @@
                 const safeId = m.id.replace(/[^a-zA-Z0-9]/g, '_');
 
                 return `
-                  <div id="media-${safeId}" class="media-card relative shrink-0 w-24 h-24 rounded-xl overflow-hidden border border-slate-700 bg-slate-950 shadow-md">
+                  <div id="media-${safeId}" class="media-card relative shrink-0 w-24 h-24 rounded-xl overflow-hidden border border-slate-700 bg-slate-950 shadow-md group">
+                    <!-- Hover/Touch Dustbin Delete Button -->
+                    <button onclick="deleteMediaFile('${m.id}')" title="Delete file from sync" class="delete-media-btn absolute top-1 right-1 bg-rose-600 hover:bg-rose-500 text-white w-6 h-6 rounded-full flex items-center justify-center z-30 shadow-md text-xs">
+                      🗑️
+                    </button>
+
                     ${isItemUploading ? `
                       <div class="upload-overlay">
                         <div class="stream-particle" style="left: 10%; animation-duration: 0.35s; animation-delay: 0.05s;"></div>
@@ -565,7 +637,7 @@
                   </div>
                 `;
               }).join('') : `
-                <div class="text-xs text-slate-500 italic px-2">Add media to /sync/${p.folder_name} to start uploading...</div>
+                <div class="text-xs text-slate-500 italic px-2">Add media to /sync/${p.folder_name} or drag & drop files here to upload...</div>
               `}
             </div>
 
@@ -584,7 +656,7 @@
                 <span class="group-hover:text-indigo-400 transition">Click to view full logs</span>
               </div>
               <div class="font-mono text-xs text-slate-300 truncate">
-                ${p.last_log ? obfuscateString(p.last_log) : '<span class="text-slate-600 italic">No logs recorded yet. Click to view.</span>'}
+                ${p.last_log ? p.last_log : '<span class="text-slate-600 italic">No logs recorded yet. Click to view.</span>'}
               </div>
             </div>
           ` : ''}
@@ -593,25 +665,13 @@
       }).join('');
     }
 
-    function obfuscateString(str) {
-      if (!str || currentSettings.obfuscate_auth === false) return str;
-      return str.replace(/--auth_data\s+[^\s]+/g, '--auth_data [REDACTED_AUTH_DATA]')
-                .replace(/Token=[^&]+/, 'Token=[REDACTED_TOKEN]')
-                .replace(/client_sig=[^&]+/, 'client_sig=[REDACTED_SIG]');
-    }
-
     function editProfile(id) {
       const p = profiles.find(item => item.id === id);
       if (!p) return;
 
       document.getElementById('edit-profile-id').value = p.id;
       document.getElementById('modal-title').innerText = `Edit Profile (${p.email})`;
-      
-      if (currentSettings.obfuscate_auth === false) {
-        document.getElementById('auth_data').value = p.auth_data;
-      } else {
-        document.getElementById('auth_data').value = '';
-      }
+      document.getElementById('auth_data').value = '';
 
       document.getElementById('folder_name').value = p.folder_name;
       document.getElementById('heartbeat').value = p.heartbeat || '';
@@ -653,11 +713,10 @@
       }
 
       content.innerHTML = currentRawLogs.map(l => {
-        const text = obfuscateString(l.message);
         return `
           <div class="border-b border-slate-800/80 pb-2">
             <span class="text-slate-500 text-[10px]">${new Date(l.created_at).toLocaleString()}</span>
-            <pre class="whitespace-pre-wrap mt-0.5 text-slate-300 font-mono">${text}</pre>
+            <pre class="whitespace-pre-wrap mt-0.5 text-slate-300 font-mono">${l.message}</pre>
           </div>
         `;
       }).join('');

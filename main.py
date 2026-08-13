@@ -9,7 +9,7 @@ import hashlib
 from datetime import datetime
 from collections import deque
 from typing import Optional, List, Dict
-from fastapi import FastAPI, Request, Response, HTTPException, Depends
+from fastapi import FastAPI, Request, Response, HTTPException, Depends, UploadFile, File
 from fastapi.responses import JSONResponse, FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -23,12 +23,11 @@ pillow_heif.register_heif_opener()
 app = FastAPI(title="GPMC Controller")
 
 DB_PATH = "/config/gpmc.db"
-CACHE_DIR = "/tmp/gpmc_cache"  # Ephemeral container cache - wiped on restart
+CACHE_DIR = "/tmp/gpmc_cache"  # Ephemeral container cache
 SESSION_TOKEN = os.urandom(16).hex()
 DB_CORRUPT = False
 DB_ERROR_MSG = ""
 
-# In-Memory Ephemeral Log Buffer (Profile ID -> deque of log entries, max 200)
 IN_MEMORY_LOGS: Dict[int, deque] = {}
 
 def check_db_file_exists():
@@ -90,7 +89,6 @@ def init_db():
         cursor.execute("INSERT OR IGNORE INTO settings (key, value) VALUES ('sync_interval_min', '5')")
         cursor.execute("INSERT OR IGNORE INTO settings (key, value) VALUES ('webhook_url', '')")
         cursor.execute("INSERT OR IGNORE INTO settings (key, value) VALUES ('ui_console_show', 'false')")
-        cursor.execute("INSERT OR IGNORE INTO settings (key, value) VALUES ('obfuscate_auth', 'true')")
         
         conn.commit()
         conn.close()
@@ -150,7 +148,6 @@ class SettingsUpdate(BaseModel):
     sync_interval_min: int
     webhook_url: Optional[str] = ""
     ui_console_show: bool = False
-    obfuscate_auth: bool = True
     password: Optional[str] = ""
 
 class LoginRequest(BaseModel):
@@ -189,21 +186,30 @@ def extract_email(auth_data: str) -> str:
         pass
     return "Google Account"
 
+def obfuscate_str(text: str) -> str:
+    if not text:
+        return ""
+    text = text.replace(/--auth_data\s+[^\s]+/g, '--auth_data [REDACTED_AUTH_DATA]')
+    text = text.replace(/Token=[^&]+/, 'Token=[REDACTED_TOKEN]')
+    text = text.replace(/client_sig=[^&]+/, 'client_sig=[REDACTED_SIG]')
+    return text
+
 def add_log(profile_id: int, message: str):
+    clean_msg = obfuscate_str(message)
     if profile_id not in IN_MEMORY_LOGS:
         IN_MEMORY_LOGS[profile_id] = deque(maxlen=200)
     
     entry = {
         "id": len(IN_MEMORY_LOGS[profile_id]) + 1,
         "profile_id": profile_id,
-        "message": message,
+        "message": clean_msg,
         "created_at": datetime.now().isoformat()
     }
     IN_MEMORY_LOGS[profile_id].appendleft(entry)
 
     try:
         conn = get_db()
-        conn.execute("UPDATE profiles SET last_log = ? WHERE id = ?", (message, profile_id))
+        conn.execute("UPDATE profiles SET last_log = ? WHERE id = ?", (clean_msg, profile_id))
         conn.commit()
         conn.close()
     except Exception:
@@ -466,7 +472,6 @@ def get_settings(auth=Depends(verify_auth)):
         "sync_interval_min": int(get_setting("sync_interval_min", "5")),
         "webhook_url": get_setting("webhook_url", ""),
         "ui_console_show": get_setting("ui_console_show", "false") == "true",
-        "obfuscate_auth": get_setting("obfuscate_auth", "true") == "true",
         "has_password": get_setting("ui_password_hash") != ""
     }
 
@@ -475,7 +480,6 @@ def save_settings(payload: SettingsUpdate, auth=Depends(verify_auth)):
     set_setting("sync_interval_min", payload.sync_interval_min)
     set_setting("webhook_url", payload.webhook_url or "")
     set_setting("ui_console_show", str(payload.ui_console_show).lower())
-    set_setting("obfuscate_auth", str(payload.obfuscate_auth).lower())
     if payload.password:
         hashed = bcrypt.hashpw(payload.password.encode(), bcrypt.gensalt()).decode()
         set_setting("ui_password_hash", hashed)
@@ -490,6 +494,9 @@ def get_profiles(auth=Depends(verify_auth)):
     profiles = []
     for r in rows:
         p = dict(r)
+        # Redact Auth Data completely
+        p["auth_data"] = "[REDACTED]"
+        
         folder = f"/sync/{p['folder_name']}"
         valid_files, _ = scan_media_files(folder)
         
@@ -518,7 +525,6 @@ def serve_media(path: str, auth=Depends(verify_auth)):
     hash_key = hashlib.md5(f"{full_path}_{mtime}".encode()).hexdigest()
     cache_path = os.path.join(CACHE_DIR, f"{hash_key}.jpg")
 
-    # Serve low-res thumbnail from ephemeral container /tmp/gpmc_cache if available
     if os.path.exists(cache_path):
         return FileResponse(cache_path, media_type="image/jpeg")
 
@@ -545,6 +551,38 @@ def serve_media(path: str, auth=Depends(verify_auth)):
         pass
 
     return FileResponse(full_path)
+
+@app.post("/api/profiles/{profile_id}/upload")
+async def upload_media_to_profile(profile_id: int, files: List[UploadFile] = File(...), auth=Depends(verify_auth)):
+    conn = get_db()
+    p = conn.execute("SELECT folder_name FROM profiles WHERE id = ?", (profile_id,)).fetchone()
+    conn.close()
+    
+    if not p:
+        raise HTTPException(status_code=404, detail="Profile not found")
+        
+    target_dir = f"/sync/{p['folder_name']}"
+    os.makedirs(target_dir, exist_ok=True)
+    
+    uploaded_files = []
+    for file in files:
+        safe_name = os.path.basename(file.filename)
+        dest_path = os.path.join(target_dir, safe_name)
+        content = await file.read()
+        with open(dest_path, "wb") as f:
+            f.write(content)
+        uploaded_files.append(safe_name)
+        
+    add_log(profile_id, f"Uploaded {len(uploaded_files)} media files via Web UI to /sync/{p['folder_name']}")
+    return {"status": "ok", "uploaded": uploaded_files}
+
+@app.delete("/api/media/{path:path}")
+def delete_single_media(path: str, auth=Depends(verify_auth)):
+    full_path = os.path.join("/sync", path)
+    if os.path.exists(full_path):
+        os.remove(full_path)
+        return {"status": "ok", "deleted": path}
+    raise HTTPException(status_code=404, detail="Media file not found")
 
 @app.post("/api/profiles")
 def create_profile(payload: ProfileCreate, auth=Depends(verify_auth)):
