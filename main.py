@@ -26,7 +26,6 @@ SESSION_TOKEN = os.urandom(16).hex()
 DB_CORRUPT = False
 DB_ERROR_MSG = ""
 
-# In-Memory Ephemeral Log Buffer (Profile ID -> deque of log entries, max 200)
 IN_MEMORY_LOGS: Dict[int, deque] = {}
 
 def check_db_file_exists():
@@ -58,6 +57,7 @@ def init_db():
             heartbeat TEXT,
             purge BOOLEAN DEFAULT 1,
             saver BOOLEAN DEFAULT 0,
+            auto_album BOOLEAN DEFAULT 1,
             threads INTEGER DEFAULT 3,
             max_retries INTEGER DEFAULT 3,
             priority INTEGER DEFAULT 0,
@@ -78,6 +78,12 @@ def init_db():
         );
         """)
         
+        # Check column migration for auto_album
+        cursor.execute("PRAGMA table_info(profiles)")
+        columns = [column[1] for column in cursor.fetchall()]
+        if "auto_album" not in columns:
+            cursor.execute("ALTER TABLE profiles ADD COLUMN auto_album BOOLEAN DEFAULT 1")
+
         cursor.execute("INSERT OR IGNORE INTO settings (key, value) VALUES ('sync_interval_min', '5')")
         cursor.execute("INSERT OR IGNORE INTO settings (key, value) VALUES ('webhook_url', '')")
         cursor.execute("INSERT OR IGNORE INTO settings (key, value) VALUES ('ui_console_show', 'false')")
@@ -123,6 +129,7 @@ class ProfileCreate(BaseModel):
     heartbeat: Optional[str] = ""
     purge: bool = True
     saver: bool = False
+    auto_album: bool = True
     threads: int = 3
     max_retries: int = 3
 
@@ -132,6 +139,7 @@ class ProfileUpdate(BaseModel):
     heartbeat: Optional[str] = ""
     purge: bool = True
     saver: bool = False
+    auto_album: bool = True
     threads: int = 3
     max_retries: int = 3
 
@@ -179,7 +187,6 @@ def extract_email(auth_data: str) -> str:
     return "Google Account"
 
 def add_log(profile_id: int, message: str):
-    # Store in ephemeral memory buffer
     if profile_id not in IN_MEMORY_LOGS:
         IN_MEMORY_LOGS[profile_id] = deque(maxlen=200)
     
@@ -191,7 +198,6 @@ def add_log(profile_id: int, message: str):
     }
     IN_MEMORY_LOGS[profile_id].appendleft(entry)
 
-    # Update lightweight status string in SQLite
     try:
         conn = get_db()
         conn.execute("UPDATE profiles SET last_log = ? WHERE id = ?", (message, profile_id))
@@ -273,7 +279,7 @@ def process_profile(profile_id: int):
             pass
         return
 
-    add_log(profile_id, f"Starting upload cycle for {total_files} files (Threads: {p['threads']})")
+    add_log(profile_id, f"Starting upload cycle for {total_files} files (Threads: {p['threads']}, Auto Album: {bool(p['auto_album'])})")
 
     successful_uploads = 0
     failed_count = 0
@@ -296,9 +302,13 @@ def process_profile(profile_id: int):
             "gpmc",
             file_path,
             "--auth_data", p["auth_data"],
-            "--album", "AUTO",
             "--threads", str(p["threads"])
         ]
+        
+        # Only pass --album AUTO if auto_album setting is enabled
+        if p["auto_album"]:
+            cmd.extend(["--album", "AUTO"])
+
         if p["saver"]:
             cmd.append("--saver")
         if p["purge"]:
@@ -533,8 +543,8 @@ def create_profile(payload: ProfileCreate, auth=Depends(verify_auth)):
     conn = get_db()
     try:
         cursor = conn.execute(
-            "INSERT INTO profiles (email, folder_name, auth_data, heartbeat, purge, saver, threads, max_retries) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-            (email, folder_name, payload.auth_data, payload.heartbeat, payload.purge, payload.saver, payload.threads, payload.max_retries)
+            "INSERT INTO profiles (email, folder_name, auth_data, heartbeat, purge, saver, auto_album, threads, max_retries) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (email, folder_name, payload.auth_data, payload.heartbeat, payload.purge, payload.saver, payload.auto_album, payload.threads, payload.max_retries)
         )
         conn.commit()
         profile_id = cursor.lastrowid
@@ -561,8 +571,8 @@ def update_profile(profile_id: int, payload: ProfileUpdate, auth=Depends(verify_
     folder_name = "".join(c for c in payload.folder_name if c.isalnum() or c in ('_', '-'))
 
     conn.execute(
-        "UPDATE profiles SET email = ?, folder_name = ?, auth_data = ?, heartbeat = ?, purge = ?, saver = ?, threads = ?, max_retries = ? WHERE id = ?",
-        (email, folder_name, auth_data, payload.heartbeat, payload.purge, payload.saver, payload.threads, payload.max_retries, profile_id)
+        "UPDATE profiles SET email = ?, folder_name = ?, auth_data = ?, heartbeat = ?, purge = ?, saver = ?, auto_album = ?, threads = ?, max_retries = ? WHERE id = ?",
+        (email, folder_name, auth_data, payload.heartbeat, payload.purge, payload.saver, payload.auto_album, payload.threads, payload.max_retries, profile_id)
     )
     conn.commit()
     conn.close()
