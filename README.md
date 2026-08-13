@@ -31,7 +31,7 @@ Built with a fast Python/FastAPI backend and a modern Tailwind CSS frontend, it 
 * 📦 **Live Media Queue Canvas**: Real-time visual previews for pending photos and videos (`.jpg`, `.png`, `.heic`, `.mp4`, `.mov`).
 * ⏱️ **Google Rate-Limit Protection**: Configurable upload cycle delays with a real-time countdown timer to mimic natural phone backup behavior.
 * ⚡ **Multi-Threaded Execution**: Boost upload throughput with configurable concurrent thread limits (default: 3 threads).
-* 🔔 **Webhook Alerts**: Send instant batch completion and error reports to Discord or Slack.
+* 🔔 **Webhook Alerts**: Send instant batch completion and error reports to Discord, Slack or BetterStack heartbeats.
 
 ---
 
@@ -76,8 +76,9 @@ Open your browser and navigate to `http://localhost:8080`.
 | **Variable** | **Default** | **Description** |
 | --- | --- | --- |
 | `PORT` | `8080` | Web UI and API HTTP port. |
+| `ALLOW_UNREDACT_AUTH` | `false` | Allow viewing of your profile AUTH_DATA from the Web UI. |
 | `UI_PASSWORD` | *(None)* | Optional initial admin password to lock the Web UI. |
-| `SYNC_INTERVAL_MINUTES` | `5` | Initial delay between scheduled upload cycles. I personally use 60 as i can wait for an hour, depends on your patience |
+| `SYNC_INTERVAL_MINUTES` | `5` | Initial delay between scheduled upload cycles. I personally use 60 as i can wait for an hour, depends on your patience. |
 
 🛠️ Obtaining `AUTH_DATA`
 -------------------------
