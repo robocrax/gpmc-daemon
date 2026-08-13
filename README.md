@@ -13,13 +13,13 @@ Built with a fast Python/FastAPI backend and a modern Tailwind CSS frontend, it 
 ## 📸 Screenshots
 
 > **Dashboard Overview**
-> ![Main Dashboard Screenshot](docs/screenshots/dashboard.png)
+> <img width="1008" height="606" alt="image" src="https://github.com/user-attachments/assets/94ffe136-4285-4040-a87b-1aefd4ebbde9" />
 > *View multi-account profile sync status, live queue previews, and countdown timers.*
 
 <br />
 
 > **Profile Settings**
-> ![Profile Settings Screenshot](docs/screenshots/settings.png)
+> <img width="590" height="577" alt="image" src="https://github.com/user-attachments/assets/29f25678-16fc-44a7-9abd-f2f1ed2c4cd5" />
 > *Configure upload delays, concurrent threads, and webhook alerts.*
 
 ---
@@ -42,9 +42,22 @@ Run GPMC Controller instantly using Docker:
 docker run -d \
   --name gpmc-controller \
   -p 8080:8080 \
-  -v $(pwd)/config:/config \
-  -v $(pwd)/sync:/sync \
+  -v ./config:/config \
+  -v ./sync:/sync \
   robocrax/gpmc-daemon:latest
+```
+
+Or using compose file:
+
+```yaml
+services:
+  gpmc-daemon:
+    ports:
+      - 8080:8080
+    volumes:
+      - ./config:/config
+      - ./sync:/sync
+    image: robocrax/gpmc-daemon:latest
 ```
 
 Open your browser and navigate to `http://localhost:8080`.
