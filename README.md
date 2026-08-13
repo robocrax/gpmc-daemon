@@ -1,18 +1,78 @@
-# System Architecture
+# GPMC Controller
+
+![Docker Image Size](https://img.shields.io/docker/image-size/robocrax/gpmc-daemon/latest)
+![Docker Pulls](https://img.shields.io/docker/pulls/robocrax/gpmc-daemon)
+![License](https://img.shields.io/github/license/robocrax/gpmc-daemon)
+
+**GPMC Controller** is a lightweight, automated web controller and daemon for syncing media files directly to Google Photos using [GPMC](https://github.com/xob0t/gpmc).
+
+Built with a fast Python/FastAPI backend and a modern Tailwind CSS frontend, it offers per-profile media directory monitoring, live queues, automatic retries, webhook alerts, and rate-limit prevention.
+
+---
+
+## 📸 Screenshots
+
+> **Dashboard Overview**
+> ![Main Dashboard Screenshot](docs/screenshots/dashboard.png)
+> *View multi-account profile sync status, live queue previews, and countdown timers.*
+
+<br />
+
+> **Profile Settings**
+> ![Profile Settings Screenshot](docs/screenshots/settings.png)
+> *Configure upload delays, concurrent threads, and webhook alerts.*
+
+---
+
+## ✨ Key Features
+
+* 🚀 **Multi-Account Management**: Manage and schedule independent Google Photos sync profiles simultaneously. It's not only you in the family, your nephew also wants free uploads.
+* 📦 **Live Media Queue Canvas**: Real-time visual previews for pending photos and videos (`.jpg`, `.png`, `.heic`, `.mp4`, `.mov`).
+* ⏱️ **Google Rate-Limit Protection**: Configurable upload cycle delays with a real-time countdown timer to mimic natural phone backup behavior.
+* ⚡ **Multi-Threaded Execution**: Boost upload throughput with configurable concurrent thread limits (default: 3 threads).
+* 🔔 **Webhook Alerts**: Send instant batch completion and error reports to Discord or Slack.
+
+---
+
+## 🚀 Quick Start with Docker
+
+Run GPMC Controller instantly using Docker:
+
+```bash
+docker run -d \
+  --name gpmc-controller \
+  -p 8080:8080 \
+  -v $(pwd)/config:/config \
+  -v $(pwd)/sync:/sync \
+  robocrax/gpmc-daemon:latest
 ```
-                                  +------------------------------------+
-                                  |        Container Environment       |
-                                  |                                    |
-  Web GUI Interface ------------->|  FastAPI Backend (Port 8080)       |
-  (Dashboard, Accounts, Logs)     |   └─ SQLModel/SQLite (DB Storage)  |
-                                  |   └─ Background Task Runner        |
-                                  |        │                           |
-  Syncthing Daemon (8384) <───────┼────────┴──> Syncthing REST API     |
-  (Auto-accepts shared folders)   |               └─ Folder Auto-Sync  |
-                                  |                       │            |
-  GPMC CLI Engine <───────────────┼───────────────────────┘            |
-  (Cycles through account dirs)   |          Files in /sync/acct_<ID>  |
-                                  +------------------------------------+
-                                             │               │
-                                  ./data Volume        ./media Volume
-```
+
+Open your browser and navigate to `http://localhost:8080`.
+
+📁 Mounting Folders
+-------------------
+
+-   `/config`: Stores profiles and auth data (SQLite database).
+
+-   `/sync`: Root directory containing profile subfolders (e.g. `/sync/profile_1`, `/sync/profile_2`). Media dropped inside these folders will automatically sync to Google Photos using the profile's auth data.
+
+⚙️ Environment Variables
+------------------------
+
+| **Variable** | **Default** | **Description** |
+| --- | --- | --- |
+| `PORT` | `8080` | Web UI and API HTTP port. |
+| `UI_PASSWORD` | *(None)* | Optional initial admin password to lock the Web UI. |
+| `SYNC_INTERVAL_MINUTES` | `5` | Initial delay between scheduled upload cycles. I personally use 60 as i can wait for an hour, depends on your patience |
+
+🛠️ Obtaining `AUTH_DATA`
+-------------------------
+
+GPMC uses mobile authentication data captured from Android Google Photos client traffic.
+
+For step-by-step instructions on obtaining your `AUTH_DATA` string, consult [GPMC Auth Documentation](https://github.com/xob0t/gpmc#auth_data-where-do-i-get-mine).
+
+🤝 Next features?
+---------------
+
+Might add a built-in syncthing or Resilio sync inside this so it can directly connect to iPhones or other devices without having to setup a separate sync.

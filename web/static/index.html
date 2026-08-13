@@ -1,0 +1,713 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>GPMC Controller</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @keyframes hourglassRotate {
+      0%, 80% { transform: rotate(0deg); }
+      90%, 100% { transform: rotate(180deg); }
+    }
+
+    /* Natural Scatterized Particle Stream Animation */
+    @keyframes particleStream {
+      0% { transform: translate3d(0, -100%, 0); opacity: 0; }
+      50% { opacity: 0.85; }
+      100% { transform: translate3d(0, 100%, 0); opacity: 0; }
+    }
+
+    .hourglass-spin {
+      display: inline-block;
+      animation: hourglassRotate 6s ease-in-out infinite;
+    }
+
+    /* Upload Icon Overlay with Staggered Rain Streams */
+    .upload-overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.25);
+      backdrop-filter: blur(0.5px);
+      z-index: 15;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      will-change: transform;
+    }
+
+    .upload-cloud-icon {
+      width: 28px;
+      height: 28px;
+      color: #818cf8;
+      filter: drop-shadow(0 2px 6px rgba(99, 102, 241, 0.7));
+      z-index: 2;
+    }
+
+    .stream-particle {
+      position: absolute;
+      width: 2px;
+      height: 22px;
+      background: linear-gradient(180deg, rgba(255,255,255,0) 0%, rgba(129,140,248,0.85) 50%, rgba(255,255,255,0) 100%);
+      animation: particleStream linear infinite;
+      will-change: transform;
+    }
+
+    /* Failure Red Overlay */
+    .overlay-error {
+      position: absolute;
+      inset: 0;
+      background: rgba(225, 29, 72, 0.92);
+      z-index: 25;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 1.75rem;
+      font-weight: bold;
+    }
+
+    /* Zero-Shift Custom Scrollbar for Tray */
+    .custom-scrollbar::-webkit-scrollbar {
+      height: 6px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: #334155;
+      border-radius: 9999px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+      background: #6366f1;
+    }
+
+    .setting-tooltip {
+      display: none;
+    }
+    input#setting-interval:focus + .setting-tooltip {
+      display: block;
+    }
+  </style>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen">
+
+  <!-- Database Corrupt Failover Screen -->
+  <div id="db-corrupt-overlay" class="fixed inset-0 bg-slate-950 flex items-center justify-center p-4 z-[110] hidden">
+    <div class="bg-slate-900 p-8 rounded-2xl border border-rose-800 shadow-2xl w-full max-w-md text-center">
+      <div class="w-16 h-16 bg-rose-600/20 text-rose-500 rounded-full flex items-center justify-center mx-auto mb-4 text-3xl">⚠️</div>
+      <h2 class="text-2xl font-bold text-white mb-2">Database Corrupted</h2>
+      <p class="text-xs text-rose-300 mb-4 bg-rose-950/60 p-3 rounded-lg font-mono text-left overflow-x-auto" id="db-error-text"></p>
+      <p class="text-xs text-slate-400 mb-6">The database file is unresponsive or structurally damaged. You can perform a reset to recreate the database file.</p>
+
+      <button onclick="resetDatabase()" class="w-full bg-rose-600 hover:bg-rose-500 text-white font-bold py-3 rounded-lg transition shadow-lg shadow-rose-950/50">
+        Start a fresh
+      </button>
+    </div>
+  </div>
+
+  <!-- Login Overlay -->
+  <div id="login-overlay" class="fixed inset-0 bg-slate-950 flex items-center justify-center p-4 z-[100] hidden">
+    <div class="bg-slate-900 p-8 rounded-2xl border border-slate-800 shadow-2xl w-full max-w-sm text-center">
+      <div class="w-12 h-12 bg-indigo-600/20 text-indigo-400 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl">🔒</div>
+      <h2 class="text-2xl font-bold text-white mb-1">GPMC Controller</h2>
+      <p class="text-xs text-slate-400 mb-6">Password protection enabled</p>
+
+      <form onsubmit="submitLogin(event)" class="space-y-4">
+        <input type="password" id="login-password" placeholder="Enter password" required class="w-full bg-slate-950 border border-slate-700 rounded-lg p-3 text-white text-center focus:ring-2 focus:ring-indigo-500 outline-none">
+        <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-medium py-3 rounded-lg transition">Unlock Access</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="max-w-5xl mx-auto py-10 px-4">
+    <!-- Main Header -->
+    <div class="flex justify-between items-center mb-8 border-b border-slate-700 pb-4 h-12">
+      <div>
+        <h1 class="text-2xl font-bold tracking-tight text-white">GPMC Controller</h1>
+        <p id="header-subtitle" class="text-xs text-slate-400 mt-0.5 flex items-center gap-1 font-mono">
+          Automated Google Photos Sync Manager
+        </p>
+      </div>
+      <div class="flex items-center gap-2 h-9">
+        <button onclick="openModal()" class="h-9 bg-indigo-600 hover:bg-indigo-500 text-white font-medium px-4 rounded-lg transition text-xs flex items-center justify-center">
+          + New Sync Profile
+        </button>
+        <button onclick="openSettingsModal()" title="Settings" class="h-9 w-9 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg text-slate-300 hover:text-white transition flex items-center justify-center text-sm">
+          ⚙️
+        </button>
+        <button id="logout-btn" onclick="logout()" title="Logout" class="hidden h-9 w-9 bg-slate-800 hover:bg-rose-950/60 border border-slate-700 rounded-lg text-slate-400 hover:text-rose-300 transition items-center justify-center text-sm">
+          🚪
+        </button>
+      </div>
+    </div>
+
+    <!-- Empty State -->
+    <div id="empty-state" class="hidden text-center py-20 bg-slate-800/50 rounded-xl border border-dashed border-slate-700">
+      <p class="text-slate-400 text-lg mb-4">No sync profiles configured yet.</p>
+      <button onclick="openModal()" class="bg-indigo-600 hover:bg-indigo-500 text-white font-medium px-6 py-3 rounded-lg transition">
+        Create Your First Sync Profile
+      </button>
+    </div>
+
+    <!-- Profiles List -->
+    <div id="profiles-container" class="space-y-4"></div>
+  </div>
+
+  <!-- Create/Edit Profile Modal -->
+  <div id="modal" onclick="handleBackdropClick(event, 'modal', closeModal)" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden flex items-center justify-center p-4 z-50">
+    <div class="bg-slate-800 rounded-xl p-6 w-full max-w-xl border border-slate-700 shadow-2xl">
+      <h2 id="modal-title" class="text-xl font-bold mb-4">Add New Sync Profile</h2>
+      <form id="profile-form" onsubmit="submitProfile(event)">
+        <input type="hidden" id="edit-profile-id">
+        <div class="space-y-4">
+          <div>
+            <label class="block text-sm font-medium mb-1">
+              Auth Data
+              <a href="https://github.com/xob0t/gpmc#auth_data-where-do-i-get-mine" target="_blank" class="text-indigo-400 hover:underline text-xs ml-2">Where do I get mine?</a>
+            </label>
+            <textarea id="auth_data" rows="3" oninput="extractAndroidId()" placeholder="Leave blank to keep existing auth data" class="w-full bg-slate-900 border border-slate-700 rounded-md p-2 text-white text-xs font-mono focus:ring-2 focus:ring-indigo-500 outline-none"></textarea>
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium mb-1">Sync Subfolder</label>
+            <div class="flex items-center bg-slate-900 border border-slate-700 rounded-md overflow-hidden focus-within:ring-2 focus-within:ring-indigo-500">
+              <span class="bg-slate-800 text-slate-400 text-sm px-3 py-2 border-r border-slate-700 font-mono">/sync/</span>
+              <input type="text" id="folder_name" required onkeyup="cleanFolderName(this)" class="w-full bg-transparent p-2 text-white font-mono text-sm outline-none">
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm font-medium mb-1">Upload Threads</label>
+              <input type="number" id="threads" value="3" min="1" max="8" class="w-full bg-slate-900 border border-slate-700 rounded-md p-2 text-white outline-none">
+            </div>
+            <div>
+              <label class="block text-sm font-medium mb-1">Max Retries</label>
+              <input type="number" id="max_retries" value="3" min="1" max="10" class="w-full bg-slate-900 border border-slate-700 rounded-md p-2 text-white outline-none">
+            </div>
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium mb-1">Heartbeat URL (Optional)</label>
+            <input type="url" id="heartbeat" placeholder="https://uptime.betterstack.com/api/v1/heartbeat/..." class="w-full bg-slate-900 border border-slate-700 rounded-md p-2 text-white focus:ring-2 focus:ring-indigo-500 outline-none">
+          </div>
+
+          <div class="flex flex-col gap-2 pt-2">
+            <label class="flex items-center gap-2 text-sm text-slate-400 cursor-not-allowed">
+              <input type="checkbox" id="purge" checked disabled class="w-4 h-4 text-indigo-600/50 rounded bg-slate-900 border-slate-700 cursor-not-allowed">
+              Purge processed media from local disk after upload
+            </label>
+            <label class="flex items-center gap-2 text-sm cursor-pointer">
+              <input type="checkbox" id="saver" class="w-4 h-4 text-indigo-600 rounded bg-slate-900 border-slate-700">
+              Upload in Storage Saver Quality (--saver)
+            </label>
+          </div>
+        </div>
+
+        <div class="flex justify-end gap-3 mt-6">
+          <button type="button" onclick="closeModal()" class="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-md text-sm">Cancel</button>
+          <button type="submit" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 rounded-md text-sm font-medium">Save Profile</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Settings Modal with Conditional Focus Tooltip -->
+  <div id="settings-modal" onclick="handleBackdropClick(event, 'settings-modal', closeSettingsModal)" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden flex items-center justify-center p-4 z-50">
+    <div class="bg-slate-800 rounded-xl p-6 w-full max-w-lg border border-slate-700 shadow-2xl relative">
+      <h2 class="text-xl font-bold mb-4 flex items-center gap-2">⚙️ Controller Settings</h2>
+      <form onsubmit="saveSettings(event)" class="space-y-4">
+        <div>
+          <label class="block text-sm font-medium mb-1">
+            Upload Delay (Minutes)
+          </label>
+          <input type="number" id="setting-interval" min="1" required class="w-full bg-slate-900 border border-slate-700 rounded-md p-2 text-white outline-none">
+          <span class="setting-tooltip text-[11px] text-indigo-300 mt-1">💡 Set a longer delay to avoid rate-limits by Google</span>
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium mb-1">Discord / Slack Webhook URL</label>
+          <input type="url" id="setting-webhook" placeholder="https://discord.com/api/webhooks/..." class="w-full bg-slate-900 border border-slate-700 rounded-md p-2 text-white outline-none">
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium mb-1">UI Access Password (Optional)</label>
+          <input type="password" id="setting-password" placeholder="Leave blank to disable or keep unchanged" class="w-full bg-slate-900 border border-slate-700 rounded-md p-2 text-white outline-none">
+        </div>
+
+        <div class="flex flex-col gap-2 pt-2">
+          <label class="flex items-center gap-2 text-sm cursor-pointer">
+            <input type="checkbox" id="setting-console-show" class="w-4 h-4 text-indigo-600 rounded bg-slate-900 border-slate-700">
+            Show Console Logs Box on Profile Cards
+          </label>
+          <label class="flex items-center gap-2 text-sm cursor-pointer">
+            <input type="checkbox" id="setting-obfuscate-auth" class="w-4 h-4 text-indigo-600 rounded bg-slate-900 border-slate-700">
+            Hide Auth Data / Tokens in UI & Logs
+          </label>
+        </div>
+
+        <div class="flex justify-between items-center mt-6 pt-4 border-t border-slate-700">
+          <span class="text-xs text-slate-500 font-mono">GPMC Controller v1.0</span>
+          <div class="flex gap-3">
+            <button type="button" onclick="closeSettingsModal()" class="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-md text-sm">Cancel</button>
+            <button type="submit" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 rounded-md text-sm font-medium">Save Settings</button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Delete Confirmation Modal -->
+  <div id="delete-modal" onclick="handleBackdropClick(event, 'delete-modal', closeDeleteModal)" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden flex items-center justify-center p-4 z-50">
+    <div class="bg-slate-800 rounded-xl p-6 w-full max-w-md border border-slate-700 shadow-2xl">
+      <h3 class="text-xl font-bold text-rose-400 mb-2">Delete Sync Profile?</h3>
+      <p class="text-sm text-slate-300 mb-4">This will remove the profile configuration from GPMC Controller.</p>
+
+      <div class="bg-slate-900/80 p-3 rounded-lg border border-slate-700 mb-4">
+        <label class="flex items-start gap-2 cursor-pointer">
+          <input type="checkbox" id="delete-sync-folder" class="mt-1 w-4 h-4 text-rose-600 rounded bg-slate-800 border-slate-700">
+          <div class="text-xs text-slate-300">
+            <span class="font-bold text-white">Also delete local sync folder:</span>
+            <div id="delete-folder-path" class="font-mono text-rose-300 mt-0.5"></div>
+            <div class="text-rose-400/90 mt-1">⚠️ Warning: Unsynced local files in this directory will be permanently deleted!</div>
+          </div>
+        </label>
+      </div>
+
+      <div class="flex justify-end gap-3">
+        <button onclick="closeDeleteModal()" class="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-md text-sm">Cancel</button>
+        <button id="confirm-delete-btn" class="px-4 py-2 bg-rose-600 hover:bg-rose-500 text-white rounded-md text-sm font-medium">Delete Profile</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Runtime Logs Modal -->
+  <div id="logs-modal" onclick="handleBackdropClick(event, 'logs-modal', closeLogsModal)" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden flex items-center justify-center p-4 z-50">
+    <div class="bg-slate-800 rounded-xl p-6 w-full max-w-4xl border border-slate-700 shadow-2xl flex flex-col max-h-[85vh]">
+      <div class="flex justify-between items-center mb-4 border-b border-slate-700 pb-3">
+        <h3 class="text-lg font-bold text-white flex items-center gap-2">
+          📋 Runtime Logs <span id="logs-profile-title" class="text-indigo-400 font-normal text-sm"></span>
+        </h3>
+        <button onclick="closeLogsModal()" class="text-slate-400 hover:text-white">✕</button>
+      </div>
+
+      <div id="logs-content" class="bg-slate-950 rounded-lg p-4 font-mono text-xs text-slate-300 overflow-y-auto flex-1 space-y-3 border border-slate-800"></div>
+
+      <div class="flex justify-end mt-4">
+        <button onclick="closeLogsModal()" class="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-md text-sm">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let profiles = [];
+    let currentSettings = {};
+    let currentRawLogs = [];
+    let activeDeleteProfileId = null;
+
+    let nextRunTimestamp = Date.now() + (5 * 60 * 1000);
+
+    function handleBackdropClick(e, modalId, closeFunc) {
+      if (e.target.id === modalId) {
+        closeFunc();
+      }
+    }
+
+    async function checkDBStatus() {
+      try {
+        const res = await fetch('/api/db/status');
+        const data = await res.json();
+        if (data.corrupt) {
+          document.getElementById('db-error-text').innerText = data.error || 'Database is corrupted';
+          document.getElementById('db-corrupt-overlay').classList.remove('hidden');
+          return false;
+        }
+        document.getElementById('db-corrupt-overlay').classList.add('hidden');
+        return true;
+      } catch (err) {
+        return true;
+      }
+    }
+
+    async function resetDatabase() {
+      if (confirm("Are you sure you want to reset the database? All profiles will be cleared.")) {
+        const res = await fetch('/api/db/reset', { method: 'POST' });
+        if (res.ok) {
+          location.reload();
+        } else {
+          alert('Failed to reset database.');
+        }
+      }
+    }
+
+    async function checkAuth() {
+      const dbOk = await checkDBStatus();
+      if (!dbOk) return;
+
+      const res = await fetch('/api/auth/status');
+      if (res.status === 503) {
+        await checkDBStatus();
+        return;
+      }
+
+      const data = await res.json();
+      if (!data.authenticated) {
+        document.getElementById('login-overlay').classList.remove('hidden');
+      } else {
+        document.getElementById('login-overlay').classList.add('hidden');
+        if (data.has_password) {
+          document.getElementById('logout-btn').classList.remove('hidden');
+        }
+        await loadSettings();
+        await loadProfiles();
+      }
+    }
+
+    async function submitLogin(e) {
+      e.preventDefault();
+      const pass = document.getElementById('login-password').value;
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: pass })
+      });
+      if (res.ok) {
+        checkAuth();
+      } else {
+        alert('Invalid password');
+      }
+    }
+
+    async function logout() {
+      await fetch('/api/auth/logout', { method: 'POST' });
+      location.reload();
+    }
+
+    async function loadSettings() {
+      const res = await fetch('/api/settings');
+      if (res.ok) {
+        currentSettings = await res.json();
+        const delayMin = currentSettings.sync_interval_min || 5;
+        nextRunTimestamp = Date.now() + (delayMin * 60 * 1000);
+      }
+    }
+
+    function updateCountdownTimer() {
+      const totalPendingFiles = profiles.reduce((acc, p) => acc + (p.media_queue ? p.media_queue.length : 0), 0);
+      const subtitleEl = document.getElementById('header-subtitle');
+
+      if (totalPendingFiles === 0) {
+        subtitleEl.innerText = "Automated Google Photos Sync Manager";
+        return;
+      }
+
+      const remainingMs = Math.max(0, nextRunTimestamp - Date.now());
+      const remainingSecs = Math.floor(remainingMs / 1000);
+      const mins = Math.floor(remainingSecs / 60);
+      const secs = remainingSecs % 60;
+
+      subtitleEl.innerHTML = `<span class="hourglass-spin">⌛</span> ${mins}m ${secs.toString().padStart(2, '0')}s until next run`;
+
+      if (remainingMs <= 0) {
+        const delayMin = currentSettings.sync_interval_min || 5;
+        nextRunTimestamp = Date.now() + (delayMin * 60 * 1000);
+      }
+    }
+
+    function openSettingsModal() {
+      document.getElementById('setting-interval').value = currentSettings.sync_interval_min || 5;
+      document.getElementById('setting-webhook').value = currentSettings.webhook_url || '';
+      document.getElementById('setting-console-show').checked = currentSettings.ui_console_show === true;
+      document.getElementById('setting-obfuscate-auth').checked = currentSettings.obfuscate_auth !== false;
+      document.getElementById('settings-modal').classList.remove('hidden');
+    }
+
+    function closeSettingsModal() { document.getElementById('settings-modal').classList.add('hidden'); }
+
+    async function saveSettings(e) {
+      e.preventDefault();
+      const payload = {
+        sync_interval_min: parseInt(document.getElementById('setting-interval').value),
+        webhook_url: document.getElementById('setting-webhook').value,
+        ui_console_show: document.getElementById('setting-console-show').checked,
+        obfuscate_auth: document.getElementById('setting-obfuscate-auth').checked,
+        password: document.getElementById('setting-password').value
+      };
+
+      await fetch('/api/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      closeSettingsModal();
+      await loadSettings();
+      await loadProfiles();
+    }
+
+    function extractAndroidId() {
+      const authData = document.getElementById('auth_data').value;
+      const match = authData.match(/androidId=([^&]+)/);
+      if (match && match[1]) {
+        document.getElementById('folder_name').value = cleanString(match[1]);
+      }
+    }
+
+    function cleanFolderName(input) { input.value = cleanString(input.value); }
+    function cleanString(str) { return str.replace(/[^a-zA-Z0-9_-]/g, ''); }
+
+    function renderFallbackBadge(imgEl, ext) {
+      const parent = imgEl.parentElement;
+      if (!parent) return;
+      imgEl.style.display = 'none';
+
+      const badge = document.createElement('div');
+      badge.className = 'w-full h-full bg-slate-900 flex flex-col items-center justify-center p-2 text-center border border-slate-800 rounded-xl';
+      badge.innerHTML = `
+        <span class="text-indigo-400 font-extrabold text-xs font-mono">${ext || 'MEDIA'}</span>
+        <span class="text-[9px] text-slate-500 uppercase mt-0.5 truncate w-full">FILE</span>
+      `;
+      parent.appendChild(badge);
+    }
+
+    async function loadProfiles() {
+      const res = await fetch('/api/profiles');
+      if (res.status === 503) {
+        await checkDBStatus();
+        return;
+      }
+      if (!res.ok) return;
+      
+      profiles = await res.json() || [];
+
+      const container = document.getElementById('profiles-container');
+      const emptyState = document.getElementById('empty-state');
+
+      if (profiles.length === 0) {
+        container.innerHTML = '';
+        emptyState.classList.remove('hidden');
+        return;
+      }
+
+      emptyState.classList.add('hidden');
+      const isSingleProfile = profiles.length === 1;
+
+      container.innerHTML = profiles.map((p) => {
+        const isUploading = p.status.startsWith('Processing') || p.status === 'Uploading';
+        const isFailed = p.status === 'Failed';
+        const activeThreads = p.threads || 3;
+        const mediaList = p.media_queue || [];
+
+        const visibleMedia = isSingleProfile ? mediaList : mediaList.slice(0, 10);
+        const remainingCount = (!isSingleProfile && mediaList.length > 10) ? mediaList.length - 10 : 0;
+
+        return `
+        <div data-id="${p.id}" class="profile-card bg-slate-800 border border-slate-700 p-5 rounded-2xl flex flex-col gap-3 shadow-xl transition-all duration-300">
+          <!-- Clean Header Row: Email on Left -->
+          <div class="flex items-center justify-between gap-4 h-9">
+            <div class="flex items-center gap-2.5 min-w-0 h-9">
+              <div class="min-w-0">
+                <div class="font-bold text-lg text-indigo-300 truncate leading-snug">${p.email}</div>
+              </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="flex items-center gap-2 shrink-0 h-8">
+              <button onclick="syncNow(${p.id})" class="h-8 bg-indigo-600/30 hover:bg-indigo-600 text-indigo-300 hover:text-white px-3 rounded-lg text-xs font-semibold transition flex items-center justify-center gap-1 border border-indigo-700/50">
+                ⚡ Sync Now
+              </button>
+              <button onclick="editProfile(${p.id})" title="Edit Profile" class="h-8 w-8 text-slate-400 hover:text-white hover:bg-slate-700 rounded-lg transition border border-slate-700 flex items-center justify-center text-xs">
+                ✏️
+              </button>
+              <button onclick="promptDelete(${p.id}, '${p.folder_name}')" title="Delete Profile" class="h-8 w-8 text-rose-400 hover:bg-rose-950/60 rounded-lg transition border border-rose-900/50 flex items-center justify-center">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24"><path d="M3 6h18v2H3V6zm2 3h14l-1 12H6L5 9zm5-5h4v2h-4V4z"/></svg>
+              </button>
+            </div>
+          </div>
+
+          <!-- Fixed Height Preview Tray with Natural Stream Particles -->
+          <div class="media-tray bg-slate-900/90 border border-slate-800 rounded-xl p-3 flex items-center justify-between relative ${isSingleProfile ? 'min-h-[135px] flex-wrap' : 'min-h-[135px] h-[135px] overflow-hidden'}">
+            <div class="custom-scrollbar flex items-center gap-3 w-full ${isSingleProfile ? 'flex-wrap' : 'overflow-x-auto py-1 px-1'}">
+              ${visibleMedia.length > 0 ? visibleMedia.map((m, mIdx) => {
+                const isItemUploading = isUploading && mIdx < activeThreads;
+                const safeId = m.id.replace(/[^a-zA-Z0-9]/g, '_');
+
+                return `
+                  <div id="media-${safeId}" class="media-card relative shrink-0 w-24 h-24 rounded-xl overflow-hidden border border-slate-700 bg-slate-950 shadow-md">
+                    ${isItemUploading ? `
+                      <div class="upload-overlay">
+                        <div class="stream-particle" style="left: 12%; animation-duration: 0.4s; animation-delay: 0.05s;"></div>
+                        <div class="stream-particle" style="left: 30%; animation-duration: 0.52s; animation-delay: 0.2s;"></div>
+                        <div class="stream-particle" style="left: 48%; animation-duration: 0.38s; animation-delay: 0.12s;"></div>
+                        <div class="stream-particle" style="left: 68%; animation-duration: 0.46s; animation-delay: 0.28s;"></div>
+                        <div class="stream-particle" style="left: 85%; animation-duration: 0.41s; animation-delay: 0.08s;"></div>
+                        <svg class="upload-cloud-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M12 12v9m0-9l-3 3m3-3l3 3"></path>
+                        </svg>
+                      </div>
+                    ` : ''}
+                    ${isFailed && mIdx === 0 ? `<div class="overlay-error">✕</div>` : ''}
+                    ${m.is_video ? `
+                      <div class="absolute inset-0 flex items-center justify-center bg-black/40 z-10">
+                        <span class="text-white text-xs">▶</span>
+                      </div>
+                    ` : ''}
+                    <img src="${m.url}" alt="media preview" onerror="renderFallbackBadge(this, '${m.ext}')" class="w-full h-full object-cover">
+                  </div>
+                `;
+              }).join('') : `
+                <div class="text-xs text-slate-500 italic px-2">Add media to /sync/${p.folder_name} to start uploading...</div>
+              `}
+            </div>
+
+            ${remainingCount > 0 ? `
+              <div class="shrink-0 bg-slate-800 border border-slate-700 px-3 py-1.5 rounded-full text-xs font-mono text-indigo-300 shadow-md ml-2">
+                and ${remainingCount.toLocaleString()} more
+              </div>
+            ` : ''}
+          </div>
+
+          <!-- Optional Inline Console Box without Emoji -->
+          ${currentSettings.ui_console_show === true ? `
+            <div onclick="openLogs(${p.id}, '${p.email}')" class="bg-slate-950 border border-slate-800 hover:border-slate-700 rounded-xl p-2.5 cursor-pointer transition group">
+              <div class="flex justify-between items-center text-[10px] text-slate-500 mb-1">
+                <span>CONSOLE OUTPUT LOGS</span>
+                <span class="group-hover:text-indigo-400 transition">Click to view full logs</span>
+              </div>
+              <div class="font-mono text-xs text-slate-300 truncate">
+                ${p.last_log ? obfuscateString(p.last_log) : '<span class="text-slate-600 italic">No logs recorded yet. Click to view.</span>'}
+              </div>
+            </div>
+          ` : ''}
+        </div>
+      `;
+      }).join('');
+    }
+
+    function obfuscateString(str) {
+      if (!str || currentSettings.obfuscate_auth === false) return str;
+      return str.replace(/--auth_data\s+[^\s]+/g, '--auth_data [REDACTED_AUTH_DATA]')
+                .replace(/Token=[^&]+/, 'Token=[REDACTED_TOKEN]')
+                .replace(/client_sig=[^&]+/, 'client_sig=[REDACTED_SIG]');
+    }
+
+    function editProfile(id) {
+      const p = profiles.find(item => item.id === id);
+      if (!p) return;
+
+      document.getElementById('edit-profile-id').value = p.id;
+      document.getElementById('modal-title').innerText = `Edit Profile (${p.email})`;
+      
+      if (currentSettings.obfuscate_auth === false) {
+        document.getElementById('auth_data').value = p.auth_data;
+      } else {
+        document.getElementById('auth_data').value = '';
+      }
+
+      document.getElementById('folder_name').value = p.folder_name;
+      document.getElementById('heartbeat').value = p.heartbeat || '';
+      document.getElementById('threads').value = p.threads || 3;
+      document.getElementById('max_retries').value = p.max_retries || 3;
+      document.getElementById('purge').checked = true;
+      document.getElementById('saver').checked = p.saver;
+
+      document.getElementById('modal').classList.remove('hidden');
+    }
+
+    function openModal() {
+      document.getElementById('edit-profile-id').value = '';
+      document.getElementById('modal-title').innerText = 'Add New Sync Profile';
+      document.getElementById('profile-form').reset();
+      document.getElementById('threads').value = 3;
+      document.getElementById('max_retries').value = 3;
+      document.getElementById('purge').checked = true;
+      document.getElementById('modal').classList.remove('hidden');
+    }
+
+    function closeModal() { document.getElementById('modal').classList.add('hidden'); }
+
+    async function openLogs(id, email) {
+      document.getElementById('logs-profile-title').innerText = `(${email})`;
+      const res = await fetch(`/api/profiles/${id}/logs`);
+      currentRawLogs = await res.json() || [];
+      renderLogs();
+      document.getElementById('logs-modal').classList.remove('hidden');
+    }
+
+    function renderLogs() {
+      const content = document.getElementById('logs-content');
+      if (currentRawLogs.length === 0) {
+        content.innerHTML = '<div class="text-slate-500 italic">No runtime logs recorded yet.</div>';
+        return;
+      }
+
+      content.innerHTML = currentRawLogs.map(l => {
+        const text = obfuscateString(l.message);
+        return `
+          <div class="border-b border-slate-800/80 pb-2">
+            <span class="text-slate-500 text-[10px]">${new Date(l.created_at).toLocaleString()}</span>
+            <pre class="whitespace-pre-wrap mt-0.5 text-slate-300 font-mono">${text}</pre>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function promptDelete(id, folderName) {
+      activeDeleteProfileId = id;
+      document.getElementById('delete-folder-path').innerText = `/sync/${folderName}`;
+      document.getElementById('delete-sync-folder').checked = false;
+      document.getElementById('confirm-delete-btn').onclick = executeDelete;
+      document.getElementById('delete-modal').classList.remove('hidden');
+    }
+
+    async function executeDelete() {
+      const deleteFolder = document.getElementById('delete-sync-folder').checked;
+      await fetch(`/api/profiles/${activeDeleteProfileId}?delete_folder=${deleteFolder}`, { method: 'DELETE' });
+      closeDeleteModal();
+      loadProfiles();
+    }
+
+    function closeDeleteModal() { document.getElementById('delete-modal').classList.add('hidden'); }
+    function closeLogsModal() { document.getElementById('logs-modal').classList.add('hidden'); }
+
+    async function submitProfile(e) {
+      e.preventDefault();
+      const editId = document.getElementById('edit-profile-id').value;
+      const payload = {
+        auth_data: document.getElementById('auth_data').value,
+        folder_name: document.getElementById('folder_name').value,
+        heartbeat: document.getElementById('heartbeat').value,
+        threads: parseInt(document.getElementById('threads').value),
+        max_retries: parseInt(document.getElementById('max_retries').value),
+        purge: true,
+        saver: document.getElementById('saver').checked
+      };
+
+      const url = editId ? `/api/profiles/${editId}` : '/api/profiles';
+      const method = editId ? 'PUT' : 'POST';
+
+      await fetch(url, {
+        method: method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      closeModal();
+      document.getElementById('profile-form').reset();
+      loadProfiles();
+    }
+
+    async function syncNow(id) {
+      await fetch(`/api/profiles/${id}/sync`, { method: 'POST' });
+      const delayMin = currentSettings.sync_interval_min || 5;
+      nextRunTimestamp = Date.now() + (delayMin * 60 * 1000);
+      loadProfiles();
+    }
+
+    setInterval(loadProfiles, 2000);
+    setInterval(updateCountdownTimer, 1000);
+    checkAuth();
+  </script>
+</body>
+</html>
