@@ -2,7 +2,6 @@
 
 ![Docker Image Size](https://img.shields.io/docker/image-size/robocrax/gpmc-daemon/latest)
 ![Docker Pulls](https://img.shields.io/docker/pulls/robocrax/gpmc-daemon)
-![License](https://img.shields.io/github/license/robocrax/gpmc-daemon)
 
 **GPMC Controller** is a lightweight, automated web controller and daemon for syncing media files directly to Google Photos using [GPMC](https://github.com/xob0t/gpmc).
 
@@ -13,13 +12,15 @@ Built with a fast Python/FastAPI backend and a modern Tailwind CSS frontend, it 
 ## 📸 Screenshots
 
 > **Dashboard Overview**
+> 
 > <img width="1008" height="606" alt="image" src="https://github.com/user-attachments/assets/94ffe136-4285-4040-a87b-1aefd4ebbde9" />
 > *View multi-account profile sync status, live queue previews, and countdown timers.*
 
 <br />
 
 > **Profile Settings**
-> <img width="1044" height="600" alt="image" src="https://github.com/user-attachments/assets/f149dc84-1dcc-47a9-8a0a-c6fa79aa2983" />
+> 
+> <img width="1017" height="633" alt="image" src="https://github.com/user-attachments/assets/cba9db06-a4d8-4099-99d4-9543f13a5050" />
 > *Configure upload delays, concurrent threads, and webhook alerts.*
 
 ---
