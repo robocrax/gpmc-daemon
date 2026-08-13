@@ -52,12 +52,12 @@ Or using compose file:
 ```yaml
 services:
   gpmc-daemon:
+    image: robocrax/gpmc-daemon:latest
     ports:
       - 8080:8080
     volumes:
-      - ./config:/config
-      - ./sync:/sync
-    image: robocrax/gpmc-daemon:latest
+      - ./settings:/config
+      - ./media_to_upload_goes_here:/sync
 ```
 
 Open your browser and navigate to `http://localhost:8080`.
