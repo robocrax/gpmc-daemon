@@ -1,4 +1,4 @@
-# GPMC Controller
+# Google Photos Web UI
 
 ![Docker Image Size](https://img.shields.io/docker/image-size/robocrax/gpmc-daemon/latest)
 ![Docker Pulls](https://img.shields.io/docker/pulls/robocrax/gpmc-daemon)
