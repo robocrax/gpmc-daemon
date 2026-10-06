@@ -1,9 +1,8 @@
-FROM python:3.11-slim
+FROM python:3.12-slim
 
-# Install ImageMagick & libheif for native CLI fallback conversion
+# libheif runtime for HEIC thumbnails; ffmpeg optional for future video thumbs.
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    imagemagick \
-    libheif-dev \
+    libheif1 \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
@@ -11,10 +10,20 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY . .
+COPY app ./app
+COPY run.py .
 
-RUN mkdir -p /config /sync web/static
+ENV PORT=8080 \
+    GPMC_CONFIG_DIR=/config \
+    GPMC_SYNC_DIR=/sync \
+    GPMC_HOME=/config/gpmc_home
+
+RUN mkdir -p /config /sync
 
 EXPOSE 8080
+VOLUME ["/config", "/sync"]
 
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080"]
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s \
+    CMD python -c "import urllib.request,os;urllib.request.urlopen(f'http://127.0.0.1:{os.getenv(\"PORT\",\"8080\")}/api/health').read()" || exit 1
+
+CMD ["python", "run.py"]

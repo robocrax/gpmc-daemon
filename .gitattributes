@@ -1,0 +1,6 @@
+# Normalize line endings. Keep scripts LF so they run on Linux after checkout.
+* text=auto eol=lf
+*.sh text eol=lf
+*.py text eol=lf
+*.png binary
+*.ico binary

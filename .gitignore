@@ -1,0 +1,17 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+# App data (config, auth DB, synced media, caches)
+data/
+*.db
+*.db-*
+# Local dev / tooling
+.playwright-mcp/
+*.png
+!docs/*.png
+.DS_Store
+.vscode/
+.idea/

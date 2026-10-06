@@ -1,0 +1,17 @@
+services:
+  gpmc-daemon:
+    build: .
+    # image: robocrax/gpmc-daemon:latest   # or pull the published image instead of building
+    container_name: gpmc-daemon
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      PORT: "8080"
+      # UI_PASSWORD: "change-me"           # optional: lock the web UI
+      # ALLOW_REVEAL_AUTH: "false"
+      # SYNC_INTERVAL_MINUTES: "5"
+      # GPMC_PROXY: "http://user:pass@host:port"
+    volumes:
+      - ./data/config:/config              # database, auth, caches
+      - ./data/sync:/sync                  # drop media here (one subfolder per account)
