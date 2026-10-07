@@ -96,9 +96,9 @@ def _exchange(oauth_token: str, android_id: str, proxy: str = "") -> dict:
     except httpx.HTTPError as exc:
         raise AuthError(f"Could not reach Google authentication: {exc}") from exc
 
-    if resp.status_code >= 300:
-        raise AuthError(f"Google authentication returned HTTP {resp.status_code}")
-
+    # Google returns actionable errors (e.g. Error=BadAuthentication for a stale
+    # oauth_token) in the body WITH a non-2xx status, so parse the body before
+    # falling back to a bare status code.
     values: dict[str, str] = {}
     for line in resp.text.splitlines():
         line = line.strip()
@@ -109,6 +109,9 @@ def _exchange(oauth_token: str, android_id: str, proxy: str = "") -> dict:
     if "Error" in values:
         code = values["Error"]
         raise AuthError(_FRIENDLY_ERRORS.get(code, f"Google authentication failed: {code}"))
+
+    if resp.status_code >= 300:
+        raise AuthError(f"Google authentication returned HTTP {resp.status_code}.")
 
     master = values.get("Token", "")
     email = values.get("Email", "").strip()
