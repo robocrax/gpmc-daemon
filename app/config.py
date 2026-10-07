@@ -56,6 +56,13 @@ WATCH_INTERVAL_SEC = int(os.getenv("GPMC_WATCH_INTERVAL_SEC", "4"))
 # Optional outbound proxy for both the login exchange and uploads.
 HTTP_PROXY = os.getenv("GPMC_PROXY", "")
 
+# Syncthing integration (optional). GPMC reads the API key from Syncthing's config.xml
+# and drives its REST API on localhost, so phones can be managed from the GPMC UI.
+SYNCTHING_URL = os.getenv("GPMC_SYNCTHING_URL", "http://127.0.0.1:8384")
+SYNCTHING_CONFIG = os.getenv("GPMC_SYNCTHING_CONFIG", str(CONFIG_DIR.parent / "syncthing" / "config.xml"))
+# Public base URL for the Syncthing GUI shown to the user (LAN by default).
+SYNCTHING_GUI_URL = os.getenv("GPMC_SYNCTHING_GUI_URL", "")
+
 # Lets the UI reveal a stored auth_data string (off by default; it's a long-lived token).
 ALLOW_REVEAL_AUTH = _bool("ALLOW_REVEAL_AUTH", False)
 

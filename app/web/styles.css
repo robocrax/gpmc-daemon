@@ -388,6 +388,30 @@ h1, h2, h3, h4 {
 .log span { color: var(--muted); word-break: break-word; }
 .logs__empty { color: var(--faint); font-size: 13px; text-align: center; padding: 24px; }
 
+/* ---------- device sync (syncthing) ---------- */
+.ds-server { display: flex; gap: 16px; align-items: flex-start; padding-bottom: 18px; border-bottom: 1px solid var(--line-soft); margin-bottom: 16px; }
+.ds-server__info { flex: 1; min-width: 0; }
+.ds-server__info h4 { font-size: 14.5px; margin-bottom: 4px; }
+.ds-server__info p { margin: 0; font-size: 13px; }
+.ds-id { display: flex; gap: 8px; align-items: center; margin-top: 10px; flex-wrap: wrap; }
+.ds-id code { font-family: var(--font-mono); font-size: 11px; background: var(--surface-2); border: 1px solid var(--line-soft); padding: 7px 9px; border-radius: 7px; word-break: break-all; flex: 1; min-width: 0; }
+.ds-h { font-size: 13px; color: var(--muted); font-weight: 500; margin: 4px 0 8px; }
+.ds-list { display: flex; flex-direction: column; gap: 8px; }
+.ds-row { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border: 1px solid var(--line-soft); border-radius: var(--r-ctl); background: var(--surface-2); flex-wrap: wrap; }
+.ds-row__main { flex: 1; min-width: 120px; }
+.ds-row__main b { display: block; font-size: 14px; font-weight: 500; }
+.ds-row__main span { font-size: 12px; color: var(--faint); }
+.ds-sel { width: auto; min-width: 150px; max-width: 190px; padding-top: 7px; padding-bottom: 7px; }
+.ds-dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+.ds-dot--on { background: var(--ok); }
+.ds-dot--off { background: var(--faint); }
+.ds-dot--pend { background: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.ds-note { display: flex; gap: 10px; align-items: flex-start; background: var(--accent-soft); border-radius: var(--r-ctl); padding: 12px; font-size: 13px; margin-bottom: 16px; }
+.ds-note svg { width: 18px; height: 18px; color: var(--accent); flex: none; margin-top: 1px; }
+.ds-add { margin-top: 16px; border-top: 1px solid var(--line-soft); padding-top: 14px; }
+.ds-add summary { cursor: pointer; font-size: 13px; }
+.ds-tip { font-size: 12.5px; margin-top: 14px; padding: 10px 12px; background: var(--surface-2); border-radius: var(--r-ctl); }
+
 /* ---------- login ---------- */
 .login { min-height: 100vh; display: grid; place-items: center; padding: 20px; }
 .login__card { width: 100%; max-width: 360px; text-align: center; }

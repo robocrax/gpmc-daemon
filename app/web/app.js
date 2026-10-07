@@ -130,7 +130,7 @@ async function enterDashboard() {
         <div class="topbar__status" id="globalStatus"></div>
         <div class="topbar__spacer"></div>
         <div class="topbar__actions">
-          <button class="btn btn--icon btn--ghost" id="phoneBtn" title="Open on your phone">${I.phoneqr}</button>
+          <button class="btn btn--icon btn--ghost" id="phoneBtn" title="Device sync (phones)">${I.phoneqr}</button>
           <button class="btn btn--icon btn--ghost" id="settingsBtn" title="Settings">${I.gear}</button>
           <button class="btn btn--primary" id="addBtn">${I.plus}<span>Connect</span></button>
         </div>
@@ -139,7 +139,7 @@ async function enterDashboard() {
     </div>`;
   $("#addBtn").addEventListener("click", openConnectWizard);
   $("#settingsBtn").addEventListener("click", openSettings);
-  $("#phoneBtn").addEventListener("click", openPhoneModal);
+  $("#phoneBtn").addEventListener("click", openDeviceSync);
   state.lanes.clear();
   await refresh(true);
   startPolling();
@@ -460,33 +460,106 @@ function showConnected(r) {
       <button class="btn btn--primary" id="setupPhone">${I.phoneqr} Set up my phone</button>
     </div>
   </div>`);
-  $("#setupPhone", inner).addEventListener("click", () => { closeModal(); openPhoneModal(); });
+  $("#setupPhone", inner).addEventListener("click", () => { closeModal(); openDeviceSync(); });
   openModal(inner);
 }
 
-/* ---------------- phone / syncthing modal ---------------- */
-function openPhoneModal() {
-  const url = (state.network && state.network.primary) || `http://localhost:8080`;
-  const urls = (state.network && state.network.urls) || [];
+/* ---------------- device sync (syncthing) ---------------- */
+function openDeviceSync() {
   const inner = node(`<div>
-    ${modalHead("Open on your phone", "Manage backups and set up camera sync from your phone.")}
-    <div class="modal__body">
-      <div class="qr-row" style="justify-content:center;flex-direction:column;text-align:center">
-        <div class="qr-box" style="width:168px;height:168px"><img alt="Dashboard QR" src="/api/qr?data=${encodeURIComponent(url)}" /></div>
-        <div class="qr-cap">Scan to open this dashboard<br/><span class="inline-code">${esc(url)}</span></div>
-      </div>
-      <div class="step" style="margin-top:20px;border-top:1px solid var(--line-soft);padding-top:18px">
-        <div class="step__num">${I.phone}</div>
-        <div class="step__body">
-          <h4>Auto-upload your camera roll</h4>
-          <p>Install <b>Syncthing</b> on your phone (Android: “Syncthing” or “Syncthing-Fork”; iOS: “Möbius Sync”). Pair it with the Syncthing running next to GPMC and point it at your account folder. New photos then flow in on their own.</p>
-          ${urls.length > 1 ? `<p class="muted">Reachable at: ${urls.map((u) => `<span class="inline-code">${esc(u)}</span>`).join(" ")}</p>` : ""}
-        </div>
+    ${modalHead("Device Sync", "Pair phones to Syncthing and choose which account each one backs up to.")}
+    <div class="modal__body" id="dsBody"><div class="center-pad"><span class="spinner spinner--lg"></span></div></div>
+  </div>`);
+  openModal(inner, { wide: true });
+  renderDeviceSync($("#dsBody", inner));
+}
+
+async function renderDeviceSync(body) {
+  body.innerHTML = `<div class="center-pad"><span class="spinner spinner--lg"></span></div>`;
+  let st;
+  try { st = await api("/api/syncthing/status"); }
+  catch (e) { body.innerHTML = `<p class="muted">${esc(e.message)}</p><div class="modal__foot" style="padding:16px 0 0;border:none"><button class="btn btn--ghost" onclick="closeModal()">Close</button></div>`; return; }
+
+  if (!st.available) {
+    body.innerHTML = `<div class="ds-note">${I.info}<div>Syncthing isn't running on this server yet. The Proxmox installer sets it up automatically; otherwise install Syncthing and reopen this.<br/><span class="muted" style="font-size:12px">Looked for its config at <span class="inline-code">${esc(st.config_path || "")}</span></span></div></div>
+      <div class="modal__foot" style="padding:16px 0 0;border:none"><button class="btn btn--ghost" onclick="closeModal()">Close</button></div>`;
+    return;
+  }
+
+  const hasAccts = st.accounts.length > 0;
+  const accOpts = (sel) => st.accounts.map((a) => `<option value="${a.id}" ${a.id === sel ? "selected" : ""}>${esc(a.label)}</option>`).join("");
+
+  const pendRows = st.pending.map((p) => `
+    <div class="ds-row">
+      <span class="ds-dot ds-dot--pend"></span>
+      <div class="ds-row__main"><b>${esc(p.name || "New phone")}</b><span>waiting to link · ${esc(p.id.slice(0, 7))}…</span></div>
+      <select class="select ds-sel" data-dev="${esc(p.id)}" ${hasAccts ? "" : "disabled"}>${accOpts()}</select>
+      <button class="btn btn--sm btn--primary ds-link" data-dev="${esc(p.id)}" data-name="${esc(p.name || "")}" ${hasAccts ? "" : "disabled"}>Link</button>
+    </div>`).join("");
+
+  const devRows = st.devices.map((d) => `
+    <div class="ds-row">
+      <span class="ds-dot ${d.connected ? "ds-dot--on" : "ds-dot--off"}"></span>
+      <div class="ds-row__main"><b>${esc(d.name || d.id.slice(0, 7))}</b><span>${d.connected ? "online" : "offline"} · ${esc(d.id.slice(0, 7))}…</span></div>
+      <select class="select ds-sel ds-change" data-dev="${esc(d.id)}" ${hasAccts ? "" : "disabled"}>${accOpts(d.account_id)}</select>
+      <button class="btn btn--icon btn--ghost ds-remove" data-dev="${esc(d.id)}" title="Remove phone">${I.trash}</button>
+    </div>`).join("");
+
+  body.innerHTML = `
+    <div class="ds-server">
+      <div class="qr-box"><img alt="Server device ID" src="/api/qr?data=${encodeURIComponent(st.my_id)}" /></div>
+      <div class="ds-server__info">
+        <h4>Add this server on your phone</h4>
+        <p class="muted">Install Syncthing (Android: “Syncthing” / “Syncthing-Fork”; iOS: “Möbius Sync”), add a remote device and scan this QR — or paste the ID. It then appears under Phones to link.</p>
+        <div class="ds-id"><code>${esc(st.my_id)}</code><button class="btn btn--sm ds-copy" data-copy="${esc(st.my_id)}">Copy ID</button>${st.gui_url ? `<a class="btn btn--sm btn--ghost" href="${esc(st.gui_url)}" target="_blank" rel="noopener">${I.external} Syncthing GUI</a>` : ""}</div>
       </div>
     </div>
-    <div class="modal__foot"><button class="btn btn--primary" onclick="closeModal()">Got it</button></div>
-  </div>`);
-  openModal(inner);
+    ${!hasAccts ? `<div class="ds-note">${I.info}<div>Connect a Google account first — then you can choose which account a phone backs up to.</div></div>` : ""}
+    <h4 class="ds-h">Phones</h4>
+    <div class="ds-list">
+      ${pendRows}${devRows}
+      ${(!st.pending.length && !st.devices.length) ? `<p class="muted" style="padding:8px 2px">No phones yet. Add this server in your phone's Syncthing app, then hit Refresh.</p>` : ""}
+    </div>
+    <details class="ds-add">
+      <summary class="muted">Add a phone by Device ID instead</summary>
+      <div class="field" style="margin-top:12px"><input class="input input--mono" id="dsNewId" placeholder="XXXXXXX-XXXXXXX-XXXXXXX-…" autocomplete="off" spellcheck="false" /></div>
+      <div class="grid-2">
+        <div class="field" style="margin-bottom:10px"><input class="input" id="dsNewName" placeholder="Name (e.g. Mum's iPhone)" /></div>
+        <div class="field" style="margin-bottom:10px"><select class="select" id="dsNewAcct" ${hasAccts ? "" : "disabled"}>${accOpts()}</select></div>
+      </div>
+      <button class="btn btn--primary" id="dsAddBtn" ${hasAccts ? "" : "disabled"}>Link phone</button>
+    </details>
+    <div class="ds-tip muted">On the phone: when the shared folder appears, accept it, point it at your <b>camera/DCIM</b> folder, and set it to <b>Send Only</b>. Several phones can back up to the same account.</div>
+    <div class="modal__foot" style="padding:16px 0 0;border:none">
+      <button class="btn btn--ghost" id="dsRefresh">Refresh</button>
+      <div style="flex:1"></div>
+      <button class="btn btn--primary" onclick="closeModal()">Done</button>
+    </div>`;
+
+  body.querySelectorAll(".ds-copy").forEach((b) => b.addEventListener("click", () => { try { navigator.clipboard.writeText(b.dataset.copy); } catch {} toast("Device ID copied", "ok"); }));
+  $("#dsRefresh", body).addEventListener("click", () => renderDeviceSync(body));
+  body.querySelectorAll(".ds-link").forEach((b) => b.addEventListener("click", () => {
+    const sel = body.querySelector(`.ds-sel[data-dev="${b.dataset.dev}"]`);
+    dsLink(b.dataset.dev, b.dataset.name, sel && sel.value, body);
+  }));
+  body.querySelectorAll(".ds-change").forEach((sel) => sel.addEventListener("change", () => dsLink(sel.dataset.dev, "", sel.value, body)));
+  body.querySelectorAll(".ds-remove").forEach((b) => b.addEventListener("click", async () => {
+    if (!confirm("Remove this phone from Syncthing? Its photos already uploaded stay in Google Photos.")) return;
+    try { await api(`/api/syncthing/devices/${encodeURIComponent(b.dataset.dev)}`, { method: "DELETE" }); toast("Phone removed", "ok"); renderDeviceSync(body); }
+    catch (e) { toast(e.message, "err"); }
+  }));
+  const addBtn = $("#dsAddBtn", body);
+  if (addBtn) addBtn.addEventListener("click", () => dsLink($("#dsNewId", body).value, $("#dsNewName", body).value, $("#dsNewAcct", body).value, body));
+}
+
+async function dsLink(deviceId, name, accountId, body) {
+  if (!deviceId || !deviceId.trim()) { toast("Enter a Device ID", "err"); return; }
+  if (!accountId) { toast("Pick an account for this phone", "err"); return; }
+  try {
+    await api("/api/syncthing/link", { method: "POST", body: { device_id: deviceId.trim(), name: name || "", account_id: Number(accountId) } });
+    toast("Phone linked", "ok");
+    renderDeviceSync(body);
+  } catch (e) { toast(e.message, "err"); renderDeviceSync(body); }
 }
 
 /* ---------------- account modal (settings / logs / upload) ---------------- */
@@ -642,6 +715,8 @@ async function openSettings() {
       <div class="field"><label>UI password</label><input class="input" type="password" id="s_pw" placeholder="${cfg.has_password ? "•••••••• (set — leave blank to keep)" : "Set a password to lock the UI"}" /><div class="hint">${cfg.has_password ? "Type a new one to change it, or a single space then save to remove." : "Optional — locks this dashboard."}</div></div>
       <div class="toggle"><div class="toggle__text"><b>Allow revealing sign-in keys</b><span>Lets you copy an account's raw auth_data from the UI</span></div>
         <label class="switch"><input type="checkbox" id="s_reveal" ${cfg.allow_reveal_auth ? "checked" : ""}/><span class="switch__track"></span></label></div>
+      <div class="toggle"><div class="toggle__text"><b>Device sync (phones)</b><span>Pair phones with Syncthing and map each to an account</span></div>
+        <button type="button" class="btn btn--sm" id="dsFromSettings">Manage phones</button></div>
       <div class="hint" style="margin-top:16px">Config: <span class="inline-code">${esc(cfg.config_dir)}</span><br/>Media: <span class="inline-code">${esc(cfg.sync_dir)}</span></div>
     </div>
     <div class="modal__foot">
@@ -652,6 +727,7 @@ async function openSettings() {
     </div>
   </div>`);
   $("#s_theme", inner).addEventListener("change", (e) => applyTheme(e.target.value));
+  $("#dsFromSettings", inner).addEventListener("click", () => { closeModal(); openDeviceSync(); });
   $("#logoutBtn", inner).addEventListener("click", async () => { try { await api("/api/logout", { method: "POST" }); } catch {} location.reload(); });
   $("#saveSettings", inner).addEventListener("click", async () => {
     const pw = $("#s_pw", inner).value;
