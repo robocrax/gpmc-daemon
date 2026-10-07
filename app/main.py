@@ -3,6 +3,18 @@ from __future__ import annotations
 
 import os
 
+# gpmc/client.py runs `signal.signal(SIGINT, ...)` at import time, which Python only
+# permits on the main thread. FastAPI serves sync routes and we run upload cycles on
+# worker threads, so the first `from gpmc import Client` there would raise
+# "signal only works in main thread of the main interpreter". Import gpmc once here —
+# module import happens on the main thread — so the signal registration succeeds and
+# every later import is a cached no-op. uvicorn installs its own SIGINT handler after
+# this import, so graceful shutdown is unaffected.
+try:
+    import gpmc  # noqa: F401
+except Exception:
+    pass
+
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
