@@ -12,7 +12,7 @@ from pathlib import Path
 
 
 APP_NAME = "GPMC Daemon"
-VERSION = "2.0.0"
+VERSION = "2.1.0"
 
 
 def _bool(name: str, default: bool = False) -> bool:

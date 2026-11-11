@@ -1,0 +1,1129 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>GPMC: original-quality Google Photos backup from your own computer</title>
+<meta name="description" content="GPMC runs on your own Windows PC or home server. Your phone sends it new photos and it uploads them to your Google Photos account at original quality. Watch the one-minute explainer.">
+<link rel="canonical" href="https://robocrax.github.io/gpmc-daemon/">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://robocrax.github.io/gpmc-daemon/">
+<meta property="og:title" content="GPMC: original-quality Google Photos backup from your own computer">
+<meta property="og:description" content="Your phone sends new photos to your own computer. GPMC uploads them to Google Photos at original quality.">
+<meta property="og:image" content="https://robocrax.github.io/gpmc-daemon/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="theme-color" content="#0b1016">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='14' fill='%230E141A'/%3E%3Ccircle cx='16' cy='16' r='7' fill='none' stroke='%23E8A54A' stroke-width='2.5'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,100..900&display=swap" rel="stylesheet">
+<style>
+:root {
+  --ink: #0b1016;
+  --stage: #0e141a;
+  --panel: #141c24;
+  --edge: #27333e;
+  --edge-2: #3d4c5a;
+  --light: #e9eef3;
+  --dim: #94a2ae;
+  --amber: #e8a54a;
+  --amber-ink: #1b1305;
+
+  --paper: #edf1f4;
+  --paper-2: #e2e8ed;
+  --text: #141c24;
+  --muted: #55636f;
+  --rule: #cdd6dd;
+  --amber-deep: #955706;
+
+  --wrap: 1180px;
+  --gutter: clamp(18px, 4vw, 40px);
+  --font: "Archivo", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: ui-monospace, "SF Mono", "Cascadia Code", Menlo, Consolas, monospace;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 17px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+a { color: inherit; }
+img { max-width: 100%; display: block; }
+:focus-visible { outline: 2px solid var(--amber); outline-offset: 3px; border-radius: 4px; }
+.wrap { max-width: var(--wrap); margin: 0 auto; padding: 0 var(--gutter); }
+.vh { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
+/* ---------- display type: the width axis does the talking ---------- */
+h1, h2, h3 { margin: 0; text-wrap: balance; }
+h1 {
+  font-size: clamp(2.15rem, 4.3vw, 3.3rem);
+  line-height: 1.06;
+  font-weight: 760;
+  font-variation-settings: "wdth" 118;
+  letter-spacing: -0.012em;
+}
+h2 {
+  font-size: clamp(1.75rem, 3.1vw, 2.6rem);
+  line-height: 1.1;
+  font-weight: 740;
+  font-variation-settings: "wdth" 116;
+  letter-spacing: -0.008em;
+}
+h3 {
+  font-size: 1.3rem;
+  line-height: 1.25;
+  font-weight: 700;
+  font-variation-settings: "wdth" 108;
+}
+
+/* ---------- buttons ---------- */
+.btn {
+  display: inline-flex; align-items: center; gap: 10px;
+  min-height: 46px; padding: 0 20px;
+  border: 1px solid transparent; border-radius: 999px;
+  font: inherit; font-weight: 650; font-size: 16px; text-decoration: none;
+  cursor: pointer;
+}
+.btn--solid { background: var(--amber); color: var(--amber-ink); }
+.btn--solid:hover { background: #f0b968; }
+.btn--line { border-color: var(--edge-2); color: var(--light); }
+.btn--line:hover { border-color: var(--dim); }
+.btn svg { width: 18px; height: 18px; }
+
+/* ---------- dark band: header, headline, film ---------- */
+.band { background: var(--ink); color: var(--light); }
+.top { display: flex; align-items: center; gap: 28px; padding-top: 18px; padding-bottom: 18px; }
+.brand { display: inline-flex; align-items: center; gap: 12px; text-decoration: none; margin-right: auto; }
+.brand svg { width: 34px; height: 34px; color: var(--amber); }
+.brand b { font-size: 1.25rem; font-weight: 800; font-variation-settings: "wdth" 120; letter-spacing: 0.01em; }
+.top nav { display: flex; gap: 26px; }
+.top nav a { color: var(--dim); text-decoration: none; font-size: 15.5px; font-weight: 550; }
+.top nav a:hover { color: var(--light); }
+@media (max-width: 720px) { .top nav a:not(.keep) { display: none; } }
+
+.head {
+  display: grid; grid-template-columns: 1.6fr 1fr; gap: clamp(24px, 4vw, 56px);
+  align-items: end;
+  padding-top: clamp(28px, 5vw, 64px); padding-bottom: clamp(28px, 4vw, 48px);
+}
+.head p { margin: 0 0 22px; font-size: 1.14rem; color: #b8c3cd; max-width: 34em; }
+.head .acts { display: flex; flex-wrap: wrap; gap: 12px; }
+@media (min-width: 1021px) { .head h1 span { display: block; white-space: nowrap; } }
+@media (max-width: 1020px) { .head { grid-template-columns: 1fr; align-items: start; } }
+
+/* ---------- the film ---------- */
+.film { padding-bottom: clamp(36px, 6vw, 80px); }
+.screen {
+  position: relative;
+  background: radial-gradient(120% 90% at 50% 40%, #121a22 0%, var(--stage) 55%, #0a0f14 100%);
+  border: 1px solid var(--edge);
+  border-radius: 20px;
+  overflow: hidden;
+}
+.stage { display: block; width: 100%; aspect-ratio: 16 / 9; cursor: pointer; font-family: var(--font); }
+.stage text { text-anchor: middle; }
+.stage .lbl { font-size: 30px; font-weight: 650; fill: var(--light); }
+.stage .sub { font-size: 22px; font-weight: 450; fill: var(--dim); }
+.stage .stat { font-size: 32px; font-weight: 720; fill: var(--light); font-variation-settings: "wdth" 108; }
+.stage .big { font-weight: 800; fill: var(--light); }
+.stage .soft { font-weight: 500; fill: var(--dim); }
+.stage.m { aspect-ratio: 1000 / 680; }
+.stage.m .lbl { font-size: 40px; }
+.stage.m .sub { display: none; }
+
+.cap {
+  position: absolute; left: 0; right: 0; bottom: 6%;
+  margin: 0 auto; padding: 0 24px; max-width: 38em;
+  text-align: center; text-wrap: balance;
+  font-size: clamp(16px, 1.75vw, 22px); line-height: 1.35; font-weight: 520;
+  color: var(--light);
+  pointer-events: none;
+}
+.cap span {
+  padding: .22em .6em; border-radius: 9px;
+  background: rgba(8, 12, 16, .82);
+  -webkit-box-decoration-break: clone; box-decoration-break: clone;
+}
+.again {
+  position: absolute; left: 50%; bottom: 13%; transform: translateX(-50%);
+  box-shadow: 0 10px 40px -10px rgba(232, 165, 74, .55);
+}
+.again[hidden] { display: none; }
+
+.ctl { display: flex; align-items: center; gap: 14px; padding: 14px 4px 6px; }
+.pp {
+  flex: none; width: 44px; height: 44px; border-radius: 50%;
+  display: grid; place-items: center;
+  background: transparent; color: var(--light); border: 1px solid var(--edge-2); cursor: pointer;
+}
+.pp:hover { border-color: var(--dim); }
+.pp svg { width: 18px; height: 18px; }
+.time { flex: none; font-size: 14px; color: var(--dim); font-variant-numeric: tabular-nums; min-width: 5.6em; text-align: right; }
+
+.scrub {
+  --p: 0%;
+  flex: 1; height: 24px; margin: 0; background: transparent; cursor: pointer;
+  -webkit-appearance: none; appearance: none;
+}
+.scrub::-webkit-slider-runnable-track { height: 4px; border-radius: 2px; background: linear-gradient(to right, var(--amber) var(--p), var(--edge) var(--p)); }
+.scrub::-moz-range-track { height: 4px; border-radius: 2px; background: var(--edge); }
+.scrub::-moz-range-progress { height: 4px; border-radius: 2px; background: var(--amber); }
+.scrub::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; margin-top: -5px; border-radius: 50%; background: var(--light); border: 0; }
+.scrub::-moz-range-thumb { width: 14px; height: 14px; border-radius: 50%; background: var(--light); border: 0; }
+
+.chaps { display: flex; gap: 4px; margin: 0; padding: 0 4px 0 62px; list-style: none; }
+.chaps li { flex: var(--g) 1 0; min-width: 0; }
+.chap {
+  width: 100%; padding: 9px 2px 4px; border: 0; border-top: 2px solid var(--edge);
+  background: none; color: var(--dim); cursor: pointer;
+  font: inherit; font-size: 14px; font-weight: 600; text-align: left;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.chap:hover { color: var(--light); }
+.chap[aria-current="true"] { color: var(--light); border-top-color: var(--amber); }
+.chaps { padding-right: calc(5.6em + 18px); }
+
+.script { margin-top: 18px; color: var(--dim); font-size: 15px; }
+.script summary { cursor: pointer; width: fit-content; }
+.script ol { margin: 12px 0 0; padding-left: 1.3em; max-width: 44em; color: #b8c3cd; }
+.script li { margin: 6px 0; }
+
+@media (max-width: 720px) {
+  .screen { border-radius: 14px; }
+  .cap { position: static; min-height: 5.6em; padding: 10px 16px 14px; font-size: 15.5px; display: grid; place-items: center; }
+  .cap span { background: none; padding: 0; }
+  .again { bottom: auto; top: 58%; }
+  .chaps { padding: 0; gap: 3px; }
+  .chaps li { flex: 1 1 0; }
+  .chap { font-size: 11.5px; text-align: center; }
+  .time { min-width: 0; }
+}
+
+/* ---------- paper sections ---------- */
+.sec { padding: clamp(56px, 8vw, 104px) 0; }
+.sec + .sec { border-top: 1px solid var(--rule); }
+.sec > .wrap > h2 { max-width: 20ch; }
+.sec .intro { margin: 18px 0 0; max-width: 40em; font-size: 1.12rem; color: var(--muted); }
+.sec a:not(.btn) { color: var(--amber-deep); text-underline-offset: 3px; font-weight: 560; }
+
+.steps { list-style: none; margin: clamp(32px, 5vw, 56px) 0 0; padding: 0; counter-reset: step; }
+.steps > li {
+  counter-increment: step;
+  display: grid; grid-template-columns: clamp(64px, 12vw, 150px) minmax(0, 1fr); gap: 0 clamp(12px, 3vw, 40px);
+  padding: clamp(26px, 4vw, 44px) 0;
+  border-top: 1px solid var(--rule);
+}
+.steps > li::before {
+  content: counter(step);
+  font-size: clamp(3rem, 8vw, 6rem); line-height: .82; font-weight: 250;
+  font-variation-settings: "wdth" 125;
+  color: var(--amber-deep);
+}
+.steps p { margin: 10px 0 0; max-width: 40em; }
+.get { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 22px; margin-top: 18px; }
+.get .btn svg { width: 19px; height: 19px; }
+.alt { margin: 34px 0 0; font-size: 1.06rem; font-weight: 700; font-variation-settings: "wdth" 106; }
+.steps .note { color: var(--muted); font-size: 15.5px; }
+
+.tabs { margin-top: 20px; max-width: 760px; }
+.tablist { display: flex; gap: 2px; }
+.tab {
+  padding: 10px 16px; border: 0; border-radius: 10px 10px 0 0;
+  background: var(--paper-2); color: var(--muted);
+  font: inherit; font-size: 15px; font-weight: 620; cursor: pointer;
+}
+.tab[aria-selected="true"] { background: var(--stage); color: var(--light); }
+.term {
+  position: relative; background: var(--stage); color: #d7e0e8;
+  border-radius: 0 12px 12px 12px; padding: 18px 92px 18px 20px;
+}
+.term[hidden] { display: none; }
+.term pre { margin: 0; overflow-x: auto; font-family: var(--mono); font-size: 14px; line-height: 1.6; white-space: pre; }
+.term pre::-webkit-scrollbar { height: 6px; }
+.term pre::-webkit-scrollbar-thumb { background: var(--edge-2); border-radius: 3px; }
+.copy {
+  position: absolute; top: 12px; right: 12px;
+  padding: 6px 12px; border-radius: 8px; border: 1px solid var(--edge-2);
+  background: var(--panel); color: var(--light); font: inherit; font-size: 13.5px; font-weight: 600; cursor: pointer;
+}
+.copy:hover { border-color: var(--dim); }
+
+.phones { margin: 18px 0 0; max-width: 760px; border-top: 1px solid var(--rule); }
+.phones div { display: grid; grid-template-columns: 9.5em minmax(0, 1fr); gap: 4px 20px; padding: 14px 0; border-bottom: 1px solid var(--rule); }
+.phones dt { font-weight: 700; font-variation-settings: "wdth" 108; }
+.phones dd { margin: 0; }
+@media (max-width: 560px) {
+  .phones div { grid-template-columns: 1fr; }
+  .term { padding-right: 20px; padding-top: 52px; }
+  .steps > li { grid-template-columns: 38px minmax(0, 1fr); }
+  .steps > li::before { font-size: 2.6rem; }
+  .tab { padding: 9px 10px; font-size: 13.5px; white-space: nowrap; }
+}
+
+.shot { margin: clamp(28px, 4vw, 48px) 0 0; }
+.shot .pan { overflow-x: auto; border-radius: 16px; border: 1px solid var(--edge); background: var(--stage); }
+.shot img { width: 100%; min-width: 760px; height: auto; aspect-ratio: 1280 / 330; object-fit: cover; object-position: top; }
+.shot figcaption { margin-top: 10px; font-size: 14.5px; color: var(--muted); }
+
+.facts { margin: clamp(28px, 4vw, 48px) 0 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 clamp(24px, 5vw, 72px); }
+.facts div { padding: 18px 0; border-top: 1px solid var(--rule); }
+.facts dt { font-weight: 700; font-variation-settings: "wdth" 108; font-size: 1.06rem; }
+.facts dd { margin: 4px 0 0; color: var(--muted); max-width: 34em; }
+@media (max-width: 720px) { .facts { grid-template-columns: 1fr; } }
+
+.qa { margin-top: clamp(24px, 4vw, 40px); max-width: 820px; border-top: 1px solid var(--rule); }
+.qa details { border-bottom: 1px solid var(--rule); }
+.qa summary {
+  display: flex; justify-content: space-between; align-items: center; gap: 20px;
+  padding: 18px 0; cursor: pointer; list-style: none;
+  font-weight: 680; font-size: 1.1rem; font-variation-settings: "wdth" 106;
+}
+.qa summary::-webkit-details-marker { display: none; }
+.qa summary::after { content: "+"; flex: none; font-size: 1.5rem; font-weight: 300; line-height: 1; color: var(--amber-deep); transition: transform .2s; }
+.qa details[open] summary::after { transform: rotate(45deg); }
+.qa p { margin: 0 0 20px; max-width: 42em; color: var(--muted); }
+
+.foot { padding: 44px 0 56px; font-size: 14.5px; color: var(--dim); }
+.foot .wrap { display: grid; grid-template-columns: 1.6fr 1fr; gap: 32px; }
+.foot p { margin: 0 0 10px; max-width: 46em; }
+.foot a { color: var(--light); text-underline-offset: 3px; }
+.foot ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; justify-items: end; }
+@media (max-width: 720px) { .foot .wrap { grid-template-columns: 1fr; } .foot ul { justify-items: start; } }
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  .qa summary::after { transition: none; }
+}
+</style>
+</head>
+<body>
+
+<div class="band">
+  <header class="wrap top">
+    <a class="brand" href="#" aria-label="GPMC home">
+      <svg viewBox="0 0 32 32" fill="none" aria-hidden="true"><circle cx="16" cy="16" r="14" stroke="currentColor" stroke-opacity=".25" stroke-width="1.5"/><path d="M16 4.5A11.5 11.5 0 0 1 25.9 10.2L16 16Z" fill="currentColor" fill-opacity=".9"/><path d="M27.5 16A11.5 11.5 0 0 1 22.6 25.4L16 16Z" fill="currentColor" fill-opacity=".55"/><path d="M19.5 27A11.5 11.5 0 0 1 8.3 24.6L16 16Z" fill="currentColor" fill-opacity=".8"/><path d="M4.5 18A11.5 11.5 0 0 1 6.1 7.6L16 16Z" fill="currentColor" fill-opacity=".4"/><path d="M11 5.4A11.5 11.5 0 0 1 16 4.5L16 16Z" fill="currentColor" fill-opacity=".65"/><circle cx="16" cy="16" r="3.4" fill="#0b1016"/></svg>
+      <b>GPMC</b>
+    </a>
+    <nav aria-label="Page">
+      <a href="#film">How it works</a>
+      <a href="#setup">Set it up</a>
+      <a href="#questions">Questions</a>
+      <a class="keep" href="https://github.com/robocrax/gpmc-daemon">GitHub</a>
+    </nav>
+  </header>
+
+  <main id="top">
+  <div class="wrap head">
+    <h1><span>Every photo you take, </span><span>in Google Photos </span><span>at original quality.</span></h1>
+    <div>
+      <p>GPMC is a free app for your own computer. Your phone sends it new photos, and it uploads them to your Google Photos account. No GPMC service sits in the middle.</p>
+      <div class="acts">
+        <a class="btn btn--solid" href="https://github.com/robocrax/gpmc-daemon/releases/latest/download/GPMC-Setup.exe">Download for Windows</a>
+        <a class="btn btn--line" href="#setup">How to set it up</a>
+      </div>
+    </div>
+  </div>
+
+  <section class="wrap film" id="film" aria-label="Explainer film">
+    <div class="screen">
+      <svg id="stage" class="stage" viewBox="0 0 1600 900" role="img" aria-label="Animated explainer: photos travel from a phone to your own computer, then to Google Photos. The same steps are written out below the player."></svg>
+      <p class="cap" aria-hidden="true"><span id="cap"></span></p>
+      <button class="btn btn--solid again" id="again" type="button" hidden>Play the explainer</button>
+    </div>
+    <div class="ctl">
+      <button class="pp" id="pp" type="button" aria-label="Play"></button>
+      <input class="scrub" id="scrub" type="range" min="0" max="63" step="0.05" value="0" aria-label="Position in the explainer">
+      <span class="time" id="time">0:00 / 1:03</span>
+    </div>
+    <ol class="chaps" id="chaps" aria-label="Chapters"></ol>
+    <details class="script">
+      <summary>Read the explainer as text</summary>
+      <ol>
+        <li>Setting up takes a minute. Open Device Sync in GPMC and it shows a code.</li>
+        <li>In Synctrain on your iPhone, tap Add device and point the camera at the code. On Android, any Syncthing app does the same.</li>
+        <li>Pick the Google account for that phone and turn on photo backup. That is the whole setup.</li>
+        <li>Now just take photos. Everything after that is automatic.</li>
+        <li>The app sends each new photo to your computer. It travels encrypted from your phone to your computer, and your phone keeps every original.</li>
+        <li>GPMC picks the photos up and uploads them to your Google Photos account. The file that left your phone is the file that arrives.</li>
+        <li>Once Google has a photo, your computer clears its copy. Nothing is deleted from your phone.</li>
+        <li>GPMC works quietly in the background and checks for new photos every five minutes.</li>
+        <li>Add the whole family. Each phone backs up to its own Google account.</li>
+      </ol>
+    </details>
+  </section>
+</div>
+
+  <section class="sec" id="setup">
+    <div class="wrap">
+      <h2>Set it up once, then just take photos.</h2>
+      <p class="intro">You need a Windows PC, a Google account and a Syncthing app on your phone. Everything runs on your own devices.</p>
+
+      <ol class="steps">
+        <li>
+          <div>
+            <h3>Install GPMC on your computer</h3>
+            <p>Download the installer and run it. GPMC opens in your browser, then waits in the tray by the clock and starts again each time you sign in. Syncthing comes built in.</p>
+            <div class="get">
+              <a class="btn btn--solid" href="https://github.com/robocrax/gpmc-daemon/releases/latest/download/GPMC-Setup.exe"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11m0 0-4.5-4.5M12 15l4.5-4.5M5 19.5h14"/></svg>Download for Windows</a>
+              <a href="https://github.com/robocrax/gpmc-daemon/releases/latest/download/GPMC-portable.zip">Or get the portable zip</a>
+            </div>
+            <p class="note">For Windows 10 and 11, 64-bit. The app isn't code-signed yet, so Windows may say it doesn't recognise it. Choose More info, then Run anyway.</p>
+            <h4 class="alt">Have a home server that never sleeps?</h4>
+            <p>Run GPMC there instead, and backups carry on while your PC is off. Pick whichever fits, then open the address it prints (port 8080) in a browser.</p>
+            <div class="tabs">
+              <div class="tablist" role="tablist" aria-label="Ways to install">
+                <button class="tab" role="tab" id="t-pve" aria-controls="p-pve" aria-selected="true" type="button">Proxmox</button>
+                <button class="tab" role="tab" id="t-doc" aria-controls="p-doc" aria-selected="false" tabindex="-1" type="button">Docker</button>
+                <button class="tab" role="tab" id="t-deb" aria-controls="p-deb" aria-selected="false" tabindex="-1" type="button">Debian or Ubuntu</button>
+              </div>
+              <div class="term" role="tabpanel" id="p-pve" aria-labelledby="t-pve">
+                <button class="copy" type="button">Copy</button>
+<pre><code>curl -fsSL https://raw.githubusercontent.com/robocrax/gpmc-daemon/main/deploy/proxmox-deploy.sh | bash</code></pre>
+              </div>
+              <div class="term" role="tabpanel" id="p-doc" aria-labelledby="t-doc" hidden>
+                <button class="copy" type="button">Copy</button>
+<pre><code>docker run -d --name gpmc-daemon --restart unless-stopped \
+  -p 8080:8080 \
+  -v ./data/config:/config \
+  -v ./data/sync:/sync \
+  robocrax/gpmc-daemon:latest</code></pre>
+              </div>
+              <div class="term" role="tabpanel" id="p-deb" aria-labelledby="t-deb" hidden>
+                <button class="copy" type="button">Copy</button>
+<pre><code>git clone https://github.com/robocrax/gpmc-daemon && cd gpmc-daemon
+sudo ./install.sh</code></pre>
+              </div>
+            </div>
+            <p class="note">Run the Proxmox command on the Proxmox host. It creates a small container and installs Syncthing in it too. With Docker or the Debian installer, install Syncthing on the same machine yourself.</p>
+          </div>
+        </li>
+        <li>
+          <div>
+            <h3>Connect your Google account</h3>
+            <p>Choose Connect and sign in to Google. You copy one sign-in token from your browser and paste it into GPMC, and the app shows you where to find it.</p>
+            <p class="note">GPMC keeps the upload credential on your computer. It never sees your Google password.</p>
+          </div>
+        </li>
+        <li>
+          <div>
+            <h3>Link your phone</h3>
+            <p>Install a Syncthing app, then open Device Sync in GPMC. Scan the code it shows to add your computer, and choose which Google account this phone backs up to.</p>
+            <dl class="phones">
+              <div>
+                <dt>iPhone or iPad</dt>
+                <dd><a href="https://apps.apple.com/us/app/synctrain/id6553985316">Get Synctrain on the App Store</a>. It is free, and its photo backup fills the shared folder from your camera roll.</dd>
+              </div>
+              <div>
+                <dt>Android</dt>
+                <dd>Any Syncthing app works, Syncthing-Fork included. Syncthing keeps <a href="https://docs.syncthing.net/users/contrib.html">a list of Android apps</a>.</dd>
+              </div>
+            </dl>
+            <p>When the shared folder appears on the phone, accept it, point it at your camera folder and set it to Send Only. New photos start arriving on their own.</p>
+          </div>
+        </li>
+      </ol>
+    </div>
+  </section>
+
+  <section class="sec" id="dashboard">
+    <div class="wrap">
+      <h2>See what is queued and what has gone up.</h2>
+      <p class="intro">The dashboard shows each account with thumbnails of the photos waiting, progress file by file, and a countdown to the next run.</p>
+      <figure class="shot">
+        <div class="pan" tabindex="0" role="group" aria-label="Dashboard screenshot"><img src="dashboard.png" width="1280" height="860" alt="GPMC dashboard: one account, ten photos queued, five of ten uploaded, with a progress bar." loading="lazy"></div>
+        <figcaption>The GPMC dashboard part-way through a backup.</figcaption>
+      </figure>
+      <dl class="facts">
+        <div><dt>Original quality or storage saver</dt><dd>Choose for each account. Original uploads the file exactly as your phone saved it.</dd></div>
+        <div><dt>One account or the whole family's</dt><dd>Each account has its own folder and schedule, and several phones can share one.</dd></div>
+        <div><dt>No duplicates</dt><dd>GPMC checks each file against your library and skips what is already there.</dd></div>
+        <div><dt>A tidy computer</dt><dd>Uploaded files are cleared from your computer by default. Turn that off to keep a second copy.</dd></div>
+        <div><dt>Albums from folders</dt><dd>Sort uploads into albums that match the folders they came from.</dd></div>
+        <div><dt>A nudge when something breaks</dt><dd>Send a webhook or heartbeat to the monitoring you already use.</dd></div>
+      </dl>
+    </div>
+  </section>
+
+  <section class="sec" id="questions">
+    <div class="wrap">
+      <h2>Questions people ask first.</h2>
+      <div class="qa">
+        <details>
+          <summary>Do my photos go through your servers?</summary>
+          <p>No. There is no GPMC service and no account to create. Photos go from your phone to your own computer, encrypted end to end by Syncthing, and from there to your Google account.</p>
+        </details>
+        <details>
+          <summary>Will it delete photos from my phone?</summary>
+          <p>No. Your phone only sends and your computer only receives. When GPMC clears an uploaded file from your computer, that change stays on your computer.</p>
+        </details>
+        <details>
+          <summary>Does my computer need to stay on?</summary>
+          <p>Only to upload. While it is off or asleep, new photos wait on your phone and go across the next time both are on. For backups around the clock, run GPMC on a home server.</p>
+        </details>
+        <details>
+          <summary>Is this made by Google?</summary>
+          <p>No. GPMC is an unofficial tool. It uploads through the same interface the Google Photos Android app uses, by way of the <a href="https://github.com/xob0t/gpmc">gpmc</a> library. It is not affiliated with or endorsed by Google, so use it only with accounts you own.</p>
+        </details>
+        <details>
+          <summary>Does GPMC store my Google password?</summary>
+          <p>No. You sign in on Google's own page. GPMC stores the upload credential that sign-in produces, in a small database on your computer.</p>
+        </details>
+        <details>
+          <summary>How soon does a new photo show up in Google Photos?</summary>
+          <p>GPMC checks every five minutes unless you change the interval in Settings. Use Back up now to start a run straight away.</p>
+        </details>
+        <details>
+          <summary>What can it run on?</summary>
+          <p>A Windows 10 or 11 PC, or a home server running Proxmox, Docker, Debian or Ubuntu. Either way you use it from your web browser.</p>
+        </details>
+      </div>
+    </div>
+  </section>
+  </main>
+
+<footer class="band foot">
+  <div class="wrap">
+    <div>
+      <p>GPMC is free, and its code is on GitHub. The upload engine is <a href="https://github.com/xob0t/gpmc">xob0t/gpmc</a>, and the sign-in flow follows <a href="https://github.com/xob0t/gotohp">gotohp</a>.</p>
+      <p>Not affiliated with Google, Syncthing or Synctrain. Google Photos is a trademark of Google LLC.</p>
+    </div>
+    <ul>
+      <li><a href="https://github.com/robocrax/gpmc-daemon">GitHub</a></li>
+      <li><a href="https://hub.docker.com/r/robocrax/gpmc-daemon">Docker Hub</a></li>
+      <li><a href="https://robocrax.com">Made by Robocrax</a></li>
+    </ul>
+  </div>
+</footer>
+
+<script>
+(() => {
+  "use strict";
+  const NS = "http://www.w3.org/2000/svg";
+  const svg = document.getElementById("stage");
+  const D = 63, SH = 12.8;   /* SH: how far the setup scene pushes the rest back */
+
+  const el = (tag, attrs, parent) => {
+    const n = document.createElementNS(NS, tag);
+    for (const k in attrs) n.setAttribute(k, attrs[k]);
+    if (parent) parent.appendChild(n);
+    return n;
+  };
+  const txt = (s, attrs, parent) => { const n = el("text", attrs, parent); n.textContent = s; return n; };
+
+  /* ---------- easing ---------- */
+  const E = {
+    lin: p => p,
+    io: p => (p < .5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2),
+    out: p => 1 - Math.pow(1 - p, 3),
+    in: p => p * p * p,
+    expo: p => (p >= 1 ? 1 : 1 - Math.pow(2, -10 * p)),
+    back: p => 1 + 2.70158 * Math.pow(p - 1, 3) + 1.70158 * Math.pow(p - 1, 2),
+  };
+
+  /* ---------- a tiny deterministic timeline: every frame is a pure function of t ---------- */
+  const DEF = { x: 0, y: 0, s: 1, r: 0, o: 1 };
+  const CUSTOM = {
+    dash: (n, v) => { n.style.strokeDashoffset = v; },
+    w: (n, v) => { n.setAttribute("width", Math.max(0, v)); },
+    k: (n, v) => { const s = n._texts[Math.round(v)]; if (n.textContent !== s) n.textContent = s; },
+    wdth: (n, v) => { n.style.fontVariationSettings = '"wdth" ' + v.toFixed(1); },
+  };
+  let tracks = new Map();
+  let inits = new Map();
+  let off = 0;
+  const abs = fn => { const o = off; off = 0; fn(); off = o; };
+
+  function init(n, vals) {
+    inits.set(n, Object.assign(inits.get(n) || {}, vals));
+    if (!tracks.has(n)) tracks.set(n, {});
+    return n;
+  }
+  function to(n, prop, t, d, v, e) {
+    let tr = tracks.get(n);
+    if (!tr) { tr = {}; tracks.set(n, tr); }
+    (tr[prop] || (tr[prop] = [])).push({ t: t + off, d, v, e: e || E.io });
+  }
+  /* chain steps on one property: [duration, value, ease]; value null = wait */
+  function seq(n, prop, t, steps) {
+    for (const [d, v, e] of steps) { if (v !== null) to(n, prop, t, d, v, e); t += d; }
+  }
+  function base(n, p) { const iv = inits.get(n); return iv && p in iv ? iv[p] : (p in DEF ? DEF[p] : 0); }
+  function finalize() {
+    for (const [n, tr] of tracks) for (const p in tr) {
+      tr[p].sort((a, b) => a.t - b.t);
+      let prev = base(n, p);
+      for (const k of tr[p]) { k.from = prev; prev = k.v; }
+    }
+  }
+  function at(n, tr, p, t) {
+    const ks = tr[p];
+    if (!ks) return base(n, p);
+    let cur = null;
+    for (const k of ks) { if (k.t <= t) cur = k; else break; }
+    if (!cur) return ks[0].from;
+    const q = cur.d > 0 ? Math.min(1, (t - cur.t) / cur.d) : 1;
+    return cur.from + (cur.v - cur.from) * cur.e(q);
+  }
+  function render(t) {
+    for (const [n, tr] of tracks) {
+      const o = at(n, tr, "o", t);
+      n.style.opacity = o;
+      n.style.visibility = o < 0.003 ? "hidden" : "visible";
+      n.style.transform = "translate(" + at(n, tr, "x", t).toFixed(2) + "px," + at(n, tr, "y", t).toFixed(2) + "px) rotate(" +
+        at(n, tr, "r", t).toFixed(2) + "deg) scale(" + at(n, tr, "s", t).toFixed(4) + ")";
+      const iv = inits.get(n);
+      for (const p in CUSTOM) if ((p in tr) || (iv && p in iv)) CUSTOM[p](n, at(n, tr, p, t));
+    }
+  }
+
+  /* ---------- drawing parts (each drawn around its own 0,0) ---------- */
+  const TILE = ["#d96a6a", "#dba765", "#c6d864", "#7fd464", "#68d49a", "#6a96d9", "#dd6fb0"];
+  const WHO = [["#e8a54a", "M"], ["#6a96d9", "D"], ["#dd6fb0", "K"]];
+  const SLOT = [[-32, -72], [32, -72], [-32, -8], [32, -8], [-32, 56], [32, 56]];
+  const IRIS = '<circle cx="16" cy="16" r="14" stroke="currentColor" stroke-opacity=".25" stroke-width="1.5" fill="none"/>' +
+    '<path d="M16 4.5A11.5 11.5 0 0 1 25.9 10.2L16 16Z" fill="currentColor" fill-opacity=".9"/>' +
+    '<path d="M27.5 16A11.5 11.5 0 0 1 22.6 25.4L16 16Z" fill="currentColor" fill-opacity=".55"/>' +
+    '<path d="M19.5 27A11.5 11.5 0 0 1 8.3 24.6L16 16Z" fill="currentColor" fill-opacity=".8"/>' +
+    '<path d="M4.5 18A11.5 11.5 0 0 1 6.1 7.6L16 16Z" fill="currentColor" fill-opacity=".4"/>' +
+    '<path d="M11 5.4A11.5 11.5 0 0 1 16 4.5L16 16Z" fill="currentColor" fill-opacity=".65"/>';
+
+  function tile(parent, color) {
+    const g = el("g", {}, parent);
+    el("rect", { x: -28, y: -28, width: 56, height: 56, rx: 9, fill: color }, g);
+    el("path", { d: "M-28 10H28V19a9 9 0 0 1-9 9H-19a9 9 0 0 1-9-9Z", fill: "#000", "fill-opacity": .26 }, g);
+    el("circle", { cx: 0, cy: -5, r: 9, fill: "#fff" }, g);
+    return g;
+  }
+  function iris(parent, hub) {
+    const g = el("g", { color: "#e8a54a" }, parent);
+    const inner = el("g", { transform: "translate(-16 -16)" }, g);
+    inner.innerHTML = IRIS + '<circle cx="16" cy="16" r="3.4" fill="' + hub + '"/>';
+    return g;
+  }
+  function qr(parent, x, y, size) {
+    const u = size / 21, f = v => v.toFixed(2);
+    const corner = (i, j) => (i < 8 && j < 8) || (i > 12 && j < 8) || (i < 8 && j > 12);
+    let d = "";
+    for (let j = 0; j < 21; j++) for (let i = 0; i < 21; i++) {
+      if (corner(i, j)) continue;
+      if ((i * 7 + j * 13 + i * j * 3 + (i ^ j)) % 5 < 2) d += "M" + f(x + i * u) + " " + f(y + j * u) + "h" + f(u) + "v" + f(u) + "h-" + f(u) + "Z";
+    }
+    el("path", { d, fill: "#0e141a", "shape-rendering": "crispEdges" }, parent);
+    [[0, 0], [14, 0], [0, 14]].forEach(([i, j]) => {
+      el("rect", { x: x + i * u, y: y + j * u, width: 7 * u, height: 7 * u, fill: "#0e141a" }, parent);
+      el("rect", { x: x + (i + 1) * u, y: y + (j + 1) * u, width: 5 * u, height: 5 * u, fill: "#fff" }, parent);
+      el("rect", { x: x + (i + 2) * u, y: y + (j + 2) * u, width: 3 * u, height: 3 * u, fill: "#0e141a" }, parent);
+    });
+  }
+  const CHECK = { fill: "none", stroke: "#08130d", "stroke-linecap": "round", "stroke-linejoin": "round" };
+  const FRAME = "M-52 -44V-66H-30M30 -66H52V-44M52 16V38H30M-30 38H-52V16";
+
+  /* hand: a palm behind the phone, fingers and a thumb in front of it */
+  function phone(parent, colors, hand) {
+    const g = el("g", {}, parent);
+    if (hand) {
+      const b = g._back = el("g", {}, g);
+      el("rect", { x: -50, y: 150, width: 150, height: 560, rx: 60, fill: "#7d92a4" }, b);
+      el("rect", { x: -98, y: -14, width: 200, height: 256, rx: 58, fill: "#8fa3b4" }, b);
+    }
+    el("rect", { x: -80, y: -160, width: 160, height: 320, rx: 28, fill: "#1c2630", stroke: "#3d4c5a", "stroke-width": 2 }, g);
+    el("rect", { x: -70, y: -150, width: 140, height: 300, rx: 20, fill: "#080c10" }, g);
+    el("rect", { x: -22, y: -143, width: 44, height: 11, rx: 5.5, fill: "#1c2630" }, g);
+    el("rect", { x: -24, y: 130, width: 48, height: 5, rx: 2.5, fill: "#3d4c5a" }, g);
+    g._tiles = SLOT.map((p, i) => tile(el("g", { transform: "translate(" + p[0] + " " + p[1] + ")" }, g), colors[i]));
+    if (hand) {
+      /* screen A: the sync app, with an Add device button */
+      const A = g._A = el("g", {}, g);
+      txt("Synctrain", { y: -102, "font-size": 19, "font-weight": 760, fill: "#e9eef3" }, A);
+      for (let i = 0; i < 2; i++) {
+        el("rect", { x: -56, y: -84 + i * 40, width: 112, height: 32, rx: 9, fill: "#141c24" }, A);
+        el("circle", { cx: -42, cy: -68 + i * 40, r: 4.5, fill: "#3d4c5a" }, A);
+        el("rect", { x: -30, y: -71 + i * 40, width: 56 - i * 16, height: 6, rx: 3, fill: "#27333e" }, A);
+      }
+      const btn = g._btn = el("g", {}, A);
+      el("rect", { x: -56, y: -22, width: 112, height: 44, rx: 13, fill: "#e8a54a" }, btn);
+      txt("Add device", { y: 5.5, "font-size": 15.5, "font-weight": 760, fill: "#1b1305" }, btn);
+      /* screen B: the camera looking for the code */
+      const B = g._B = el("g", {}, g);
+      txt("Scan the code", { y: -98, "font-size": 15, "font-weight": 600, fill: "#94a2ae" }, B);
+      g._mini = el("g", {}, B);
+      el("rect", { x: -40, y: -54, width: 80, height: 80, rx: 6, fill: "#fff" }, g._mini);
+      qr(g._mini, -35, -49, 70);
+      el("path", { d: FRAME, fill: "none", stroke: "#e9eef3", "stroke-width": 3, "stroke-linecap": "round", "stroke-linejoin": "round" }, B);
+      g._found = el("path", { d: FRAME, fill: "none", stroke: "#5fb98e", "stroke-width": 4, "stroke-linecap": "round", "stroke-linejoin": "round" }, B);
+      g._scan = el("rect", { x: -48, y: -1.5, width: 96, height: 3, rx: 1.5, fill: "#e8a54a" }, B);
+      /* screen C: linked, with the photo backup switch */
+      const C = g._C = el("g", {}, g);
+      g._ck = el("g", {}, C);
+      el("circle", { r: 26, fill: "#5fb98e" }, g._ck);
+      el("path", Object.assign({ d: "M-10 1l7 7l13-15", "stroke-width": 4.2 }, CHECK), g._ck);
+      txt("Linked", { y: -22, "font-size": 19, "font-weight": 760, fill: "#e9eef3" }, C);
+      txt("Photo backup", { x: 10, y: 22, "font-size": 14, "font-weight": 600, fill: "#94a2ae" }, C);
+      el("rect", { x: -9, y: 35, width: 38, height: 22, rx: 11, fill: "#27333e" }, C);
+      g._on = el("rect", { x: -9, y: 35, width: 38, height: 22, rx: 11, fill: "#e8a54a" }, C);
+      g._knob = el("circle", { r: 8, fill: "#fff" }, C);
+      g._rip = el("circle", { r: 24, fill: "none", stroke: "#e9eef3", "stroke-width": 2.5 }, g);
+    }
+    g._flash = el("rect", { x: -70, y: -150, width: 140, height: 300, rx: 20, fill: "#fff" }, g);
+    if (hand) {
+      const f = g._front = el("g", {}, g);
+      for (let i = 0; i < 4; i++) el("rect", { x: -104, y: 2 + i * 40, width: 48, height: 32, rx: 16, fill: "#a9bccb" }, f);
+      el("rect", { x: 60, y: 118, width: 62, height: 124, rx: 31, fill: "#a9bccb" }, f);
+      g._thumb = el("g", {}, f);
+      el("rect", { x: -22, y: -150, width: 44, height: 182, rx: 22, fill: "#b3c5d2" }, g._thumb);
+    }
+    return g;
+  }
+  /* the user's own computer: a desktop monitor on a stand */
+  function computer(parent) {
+    const g = el("g", {}, parent);
+    el("path", { d: "M-15 84h30l7 30h-44Z", fill: "#1c2630", stroke: "#3d4c5a", "stroke-width": 2, "stroke-linejoin": "round" }, g);
+    el("rect", { x: -64, y: 112, width: 128, height: 11, rx: 5.5, fill: "#1c2630", stroke: "#3d4c5a", "stroke-width": 2 }, g);
+    el("rect", { x: -135, y: -112, width: 270, height: 198, rx: 16, fill: "#141c24", stroke: "#3d4c5a", "stroke-width": 2 }, g);
+    el("circle", { cx: 0, cy: -101, r: 3, fill: "#3d4c5a" }, g);
+    g._iris = iris(g, "#141c24");
+    g._stat = el("text", { class: "stat", x: 0, y: 22 }, g);
+    el("rect", { x: -80, y: 38, width: 160, height: 8, rx: 4, fill: "#27333e" }, g);
+    g._bar = el("rect", { x: -80, y: 38, width: 0, height: 8, rx: 4, fill: "#e8a54a" }, g);
+    return g;
+  }
+  function cloud(parent) {
+    const g = el("g", {}, parent);
+    el("path", { d: "M-90 95a55 55 0 0 1-8-109a78 78 0 0 1 150-22a70 70 0 0 1 38 131Z", fill: "#141c24", stroke: "#3d4c5a", "stroke-width": 2, "stroke-linejoin": "round" }, g);
+    return g;
+  }
+  function who(parent, i) {
+    const g = el("g", {}, parent);
+    el("circle", { r: 23, fill: WHO[i][0], stroke: "#0e141a", "stroke-width": 4 }, g);
+    txt(WHO[i][1], { y: 8, "font-size": 22, "font-weight": 800, fill: "#10161c" }, g);
+    return g;
+  }
+  function label(parent, main, sub) {
+    const g = el("g", {}, parent);
+    txt(main, { class: "lbl", y: 0 }, g);
+    txt(sub, { class: "sub", y: 34 }, g);
+    return g;
+  }
+  function dotted(parent, x1, y1, x2, y2) {
+    return el("line", { x1, y1, x2, y2, stroke: "#4a5b6a", "stroke-width": 3.5, "stroke-linecap": "round", "stroke-dasharray": "0.1 13" }, parent);
+  }
+
+  /* ---------- the film ---------- */
+  function build(m) {
+    tracks = new Map(); inits = new Map(); off = SH;
+    svg.replaceChildren();
+    svg.classList.toggle("m", m);
+    svg.setAttribute("viewBox", m ? "300 50 1000 680" : "0 0 1600 900");
+
+    const cy = 410, sx = 800, px = m ? 470 : 380, cx = m ? 1130 : 1220;
+    const phx = m ? 1075 : 1130;   /* where the phone is held during setup */
+
+    const defs = el("defs", {}, svg);
+    const grad = el("radialGradient", { id: "glow" }, defs);
+    el("stop", { offset: 0, "stop-color": "#e8a54a", "stop-opacity": .17 }, grad);
+    el("stop", { offset: 1, "stop-color": "#e8a54a", "stop-opacity": 0 }, grad);
+
+    /* on the wide stage the whole scene is drawn a little larger, about its centre */
+    const k = m ? 1 : 1.2;
+    const world = init(el("g", {}, svg), { x: 800 * (1 - k), y: 400 * (1 - k), s: k });
+    to(world, "o", 45.0, .7, 0, E.in);
+
+    /* soft light that follows the story */
+    const glow = init(el("circle", { r: 380, fill: "url(#glow)" }, world), { x: 800, y: 400, o: 0 });
+    abs(() => to(glow, "o", 1.9, .8, 1));
+    seq(glow, "x", 6.5, [[1.0, px], [3.2, null], [1.4, sx], [4.6, null], [2.0, cx], [7.3, null], [1.2, px], [3.8, null], [1.2, sx], [5.8, null], [1.0, 800]]);
+    to(glow, "s", 38.0, 1.0, 1.5);
+
+    /* links */
+    const p1 = init(dotted(world, px + 98, cy, sx - 155, cy), { o: 0 });
+    to(p1, "o", 7.2, .4, 1); to(p1, "o", 37.8, .3, 0);
+    to(p1, "dash", 7.2, 31, -31 * 26.2, E.lin);
+    const p2 = init(dotted(world, sx + 155, cy, cx - 152, cy), { o: 0 });
+    to(p2, "o", 14.4, .4, 1);
+    to(p2, "dash", 14.4, 31, -31 * 26.2, E.lin);
+
+    const PY = [220, 410, 600];
+    const lanes = PY.map((y, i) => {
+      const n = init(dotted(world, px + 54, y, sx - 155, cy + (i - 1) * 46), { o: 0 });
+      to(n, "o", 39.0, .4, 1);
+      to(n, "dash", 39.0, 6.5, -6.5 * 26.2, E.lin);
+      return n;
+    });
+
+    /* day and night over the computer */
+    const arc = init(el("path", { d: "M-203.5 -117.5A235 235 0 0 1 203.5 -117.5", fill: "none", stroke: "#33424f", "stroke-width": 2.5, "stroke-linecap": "round", "stroke-dasharray": "0.1 11" }, world), { x: sx, y: cy, o: 0 });
+    to(arc, "o", 31.2, .5, 1); to(arc, "o", 37.2, .5, 0);
+
+    /* labels */
+    const lPhone = init(label(world, "Your phone", "Synctrain or any Syncthing app"), { x: px, y: cy + 218, o: 0 });
+    to(lPhone, "o", 7.3, .4, 1); to(lPhone, "o", 37.7, .3, 0);
+    const lServer = init(label(world, "Your computer", "running GPMC"), { x: sx, y: cy + 218, o: 0 });
+    to(lServer, "o", 7.5, .4, 1);
+    const lCloud = init(label(world, "Google Photos", "your own account"), { x: cx, y: cy + 218, o: 0 });
+    to(lCloud, "o", 14.6, .4, 1);
+
+    /* main phone */
+    /* ---- setup scene: the GPMC window shows a code, the phone scans it ---- */
+    const ww = m ? 510 : 560, wx = m ? 585 : 630, wy = 385;
+    const L = -ww / 2 + 34, Q = ww / 2 - 230, rw = Q - 24 - L;
+    const win = init(el("g", {}, world), { x: wx, y: wy, s: .92, o: 0 });
+    el("rect", { x: -ww / 2, y: -200, width: ww, height: 400, rx: 18, fill: "#141c24", stroke: "#3d4c5a", "stroke-width": 2 }, win);
+    el("line", { x1: -ww / 2, y1: -156, x2: ww / 2, y2: -156, stroke: "#27333e", "stroke-width": 2 }, win);
+    iris(el("g", { transform: "translate(" + (-ww / 2 + 30) + " -178) scale(.7)" }, win), "#141c24");
+    txt("GPMC", { x: -ww / 2 + 52, y: -171, "font-size": 20, "font-weight": 700, fill: "#94a2ae", style: "text-anchor:start" }, win);
+    const ctl = { fill: "none", stroke: "#94a2ae", "stroke-width": 2, "stroke-linecap": "round" };
+    el("path", Object.assign({ d: "M" + (ww / 2 - 112) + " -178h14" }, ctl), win);
+    el("rect", Object.assign({ x: ww / 2 - 77, y: -184.5, width: 13, height: 13, rx: 2 }, ctl), win);
+    el("path", Object.assign({ d: "M" + (ww / 2 - 43) + " -184.5l13 13m0 -13l-13 13" }, ctl), win);
+    txt("Device Sync", { x: L, y: -106, "font-size": 32, "font-weight": 760, fill: "#e9eef3", style: "text-anchor:start" }, win);
+    txt("Phones", { x: L, y: -32, "font-size": 21, "font-weight": 650, fill: "#94a2ae", style: "text-anchor:start" }, win);
+    for (let i = 0; i < 2; i++) el("rect", { x: L, y: -14 + i * 78, width: rw, height: 64, rx: 13, fill: "none", stroke: "#33424f", "stroke-width": 2, "stroke-dasharray": "7 8" }, win);
+    const row = init(el("g", {}, win), { x: 26, o: 0 });
+    el("rect", { x: L, y: -14, width: rw, height: 64, rx: 13, fill: "#1c2630", stroke: "#3d4c5a", "stroke-width": 2 }, row);
+    el("circle", { cx: L + 24, cy: 18, r: 6, fill: "#5fb98e" }, row);
+    txt("iPhone", { x: L + 42, y: 26, "font-size": 23, "font-weight": 650, fill: "#e9eef3", style: "text-anchor:start" }, row);
+    const chip = init(who(row, 0), { x: L + rw - 36, y: 18, s: 0 });
+    el("rect", { x: Q, y: -56, width: 196, height: 196, rx: 14, fill: "#fff" }, win);
+    qr(win, Q + 14, -42, 168);
+    const qfound = init(el("rect", { x: Q - 9, y: -65, width: 214, height: 214, rx: 21, fill: "none", stroke: "#5fb98e", "stroke-width": 4 }, win), { o: 0 });
+    const beam = init(el("polygon", { points: (wx + Q + 196) + "," + (wy - 56) + " " + (phx - 112) + ",308 " + (phx - 112) + ",453 " + (wx + Q + 196) + "," + (wy + 140), fill: "#e8a54a" }, world), { o: 0 });
+
+    const ph = init(phone(world, TILE, true), { x: phx, y: 1170, s: 1.4 });
+    abs(() => {
+      to(win, "o", 2.0, .45, 1); to(win, "s", 2.0, .6, 1, E.back); to(win, "o", 13.9, .45, 0);
+      to(ph, "y", 3.4, 1.0, 400, E.expo);
+      to(ph, "x", 14.6, 1.0, 800);
+      [ph._back, ph._front].forEach(h => { init(h, {}); to(h, "y", 14.2, .8, 640, E.in); to(h, "o", 15.0, .05, 0); });
+      const thumb = init(ph._thumb, { x: 96, y: 150, r: 10 });
+      const rip = init(ph._rip, { x: 21, y: 46, s: .4, o: 0 });
+      [6.65, 12.6].forEach(t => {
+        seq(thumb, "r", t, [[.3, -36], [.12, null], [.3, 10]]);
+        seq(rip, "s", t + .3, [[0, .4], [.5, 1.5, E.out]]);
+        seq(rip, "o", t + .3, [[.01, .7, E.lin], [.49, 0, E.out]]);
+      });
+      const btn = init(ph._btn, { x: 0, y: 44 });
+      seq(btn, "s", 6.9, [[.1, .93], [.2, 1]]);
+      to(init(ph._A, {}), "o", 7.2, .25, 0);
+      const B = init(ph._B, { o: 0 });
+      to(B, "o", 7.25, .25, 1); to(B, "o", 9.9, .25, 0);
+      const scan = init(ph._scan, { y: -60 });
+      seq(scan, "y", 7.5, [[.9, 32], [.9, -60]]); to(scan, "o", 9.3, .1, 0);
+      to(init(ph._mini, { o: 0 }), "o", 8.2, .6, 1);
+      to(init(ph._found, { o: 0 }), "o", 9.35, .15, 1);
+      to(qfound, "o", 9.35, .2, 1);
+      seq(beam, "o", 7.5, [[.4, .17], [.45, .07], [.45, .17], [.4, .08], [.3, 0]]);
+      const C = init(ph._C, { o: 0 });
+      to(C, "o", 9.95, .25, 1); to(C, "o", 14.85, .3, 0);
+      to(init(ph._ck, { x: 0, y: -76, s: 0 }), "s", 10.0, .5, 1, E.back);
+      to(row, "o", 10.4, .4, 1); to(row, "x", 10.4, .5, 0, E.out);
+      to(chip, "s", 11.7, .45, .8, E.back);
+      to(init(ph._on, { o: 0 }), "o", 12.95, .2, 1);
+      to(init(ph._knob, { x: 2, y: 46 }), "x", 12.95, .2, 18);
+    });
+    to(ph, "x", 6.5, 1.0, px); to(ph, "y", 6.5, 1.0, cy); to(ph, "s", 6.5, 1.0, 1);
+    to(ph, "y", 38.0, .9, PY[0]); to(ph, "s", 38.0, .9, .55);
+    const flash = init(ph._flash, { o: 0 });
+    const snap = t => { to(flash, "o", t, .02, .6, E.lin); to(flash, "o", t + .03, .32, 0, E.out); };
+    ph._tiles.forEach((g, i) => {
+      init(g, { s: 0 });
+      const t = 2.6 + i * .42;
+      snap(t - .05);
+      to(g, "s", t, .45, 1, E.back);
+    });
+
+    /* the rest of the family */
+    const fam = [1, 2].map(i => {
+      const g = init(phone(world, TILE.slice(i * 2).concat(TILE), false), { x: px, y: PY[i], s: .35, o: 0 });
+      init(g._flash, { o: 0 });
+      const t = 38.5 + (i - 1) * .25;
+      to(g, "o", t, .3, 1); to(g, "s", t, .6, .55, E.back);
+      return g;
+    });
+
+    /* computer */
+    const sv = init(computer(world), { x: sx, y: cy, s: .8, o: 0 });
+    to(sv, "o", 6.9, .5, 1); to(sv, "s", 6.9, .7, 1, E.back);
+    const ir = init(sv._iris, { x: 0, y: -52, s: 2.1 });
+    to(ir, "r", 14.6, 7.6, 720); to(ir, "r", 31.4, 6.2, 1440); to(ir, "r", 39.6, 5.2, 2160);
+    const stat = init(sv._stat, { x: 0, y: 0, k: 0 });
+    stat._texts = ["Ready", "1 new", "2 new", "3 new", "4 new", "5 new", "6 new", "1 / 6", "2 / 6", "3 / 6", "4 / 6", "5 / 6", "6 / 6", "All clear", "Every 5 min", "3 accounts"];
+    const bar = init(sv._bar, { w: 0 });
+
+    /* cloud */
+    const cl = init(cloud(world), { x: cx, y: cy, s: .8, o: 0 });
+    to(cl, "o", 14.1, .5, 1); to(cl, "s", 14.1, .7, 1, E.back);
+
+    /* seal on the phone-to-computer link */
+    const lock = init(el("g", {}, world), { x: (px + 98 + sx - 155) / 2, y: cy, s: 0 });
+    el("circle", { r: 24, fill: "#0e141a", stroke: "#e8a54a", "stroke-width": 2.5 }, lock);
+    el("rect", { x: -8, y: -2, width: 16, height: 12, rx: 3, fill: "#e8a54a" }, lock);
+    el("path", { d: "M-5 -2V-6a5 5 0 0 1 10 0V-2", fill: "none", stroke: "#e8a54a", "stroke-width": 2.5 }, lock);
+    to(lock, "s", 10.9, .5, 1, E.back); to(lock, "s", 37.7, .3, 0, E.in);
+
+    /* phone to computer: copies fly, originals stay */
+    const QX = i => sx - 65 + i * 26, QY = cy + 66;
+    const GX = i => cx - 34 + (i % 3) * 34, GY = i => cy + 26 + Math.floor(i / 3) * 36;
+    const f2 = [], f3 = [];
+    for (let i = 0; i < 6; i++) {
+      const y0 = cy + SLOT[i][1];
+      const a = init(tile(world, TILE[i]), { x: px + SLOT[i][0], y: y0, o: 0 });
+      const t = 7.9 + i * .45, d = 1.15;
+      to(a, "o", t, .01, 1, E.lin);
+      to(a, "x", t, d, QX(i));
+      seq(a, "y", t, [[d * .5, y0 - 70, E.out], [d * .5, QY, E.in]]);
+      to(a, "s", t + d * .35, d * .65, .4);
+      to(stat, "k", t + d, 0, i + 1);
+      f2.push(a);
+    }
+    /* computer to Google Photos, at full size */
+    for (let i = 0; i < 6; i++) {
+      const b = init(tile(world, TILE[i]), { x: QX(i), y: QY, s: .4, o: 0 });
+      const t = 15.4 + i * 1.0, d = 1.25;
+      to(f2[i], "o", t, .15, .26);
+      to(b, "o", t, .01, 1, E.lin);
+      to(b, "x", t, d, GX(i));
+      seq(b, "y", t, [[d * .5, cy - 120, E.out], [d * .5, GY(i), E.in]]);
+      seq(b, "s", t, [[d * .45, 1, E.out], [d * .1, null], [d * .45, .5]]);
+      to(bar, "w", t + d - .35, .4, (i + 1) / 6 * 160);
+      to(stat, "k", t + d, 0, 7 + i);
+      to(b, "o", 38.1, .4, 0);
+      f3.push(b);
+    }
+    /* tidy up: the computer lets go of its copies */
+    f2.forEach((a, i) => to(a, "s", 25.7 + i * .12, .4, 0, E.in));
+    to(bar, "w", 26.4, .5, 0);
+    to(stat, "k", 26.7, 0, 13);
+    const ring = init(el("rect", { x: -90, y: -170, width: 180, height: 340, rx: 34, fill: "none", stroke: "#5fb98e", "stroke-width": 3 }, world), { x: px, y: cy, o: 0 });
+    to(ring, "o", 27.2, .2, .9); to(ring, "s", 27.2, 1.0, 1.13, E.out); to(ring, "o", 27.5, .7, 0);
+    const kept = init(el("g", {}, world), { x: px + 76, y: cy - 156, s: 0 });
+    el("circle", { r: 21, fill: "#5fb98e", stroke: "#0e141a", "stroke-width": 4 }, kept);
+    el("path", { d: "M-8.5 0.5l5.5 5.5l11-12", fill: "none", stroke: "#08130d", "stroke-width": 3.6, "stroke-linecap": "round", "stroke-linejoin": "round" }, kept);
+    to(kept, "s", 27.4, .5, 1, E.back); to(kept, "s", 37.6, .3, 0, E.in);
+
+    /* around the clock */
+    to(stat, "k", 31.6, 0, 14);
+    const sun = init(el("g", {}, world), { x: sx, y: cy, r: -62, o: 0 });
+    const sunIn = el("g", { transform: "translate(0 -235)" }, sun);
+    el("circle", { r: 17, fill: "#e8a54a" }, sunIn);
+    for (let i = 0; i < 8; i++) el("line", { x1: 0, y1: -25, x2: 0, y2: -32, stroke: "#e8a54a", "stroke-width": 3.5, "stroke-linecap": "round", transform: "rotate(" + i * 45 + ")" }, sunIn);
+    to(sun, "o", 31.4, .4, 1); to(sun, "r", 31.4, 3.0, 62); to(sun, "o", 34.1, .3, 0);
+    const moon = init(el("g", {}, world), { x: sx, y: cy, r: -62, o: 0 });
+    el("path", { d: "M8 -16a18 18 0 1 0 8 26a14 14 0 0 1-8-26Z", fill: "#b9c8d6", transform: "translate(0 -235)" }, moon);
+    to(moon, "o", 34.4, .4, 1); to(moon, "r", 34.4, 3.0, 62); to(moon, "o", 37.1, .3, 0);
+    const stream = [0, 1, 2, 3].map(j => init(tile(world, TILE[(j * 2 + 1) % 7]), { x: px + 70, y: cy, s: .5, o: 0 }));
+    for (let n = 0; n < 8; n++) {
+      const g = stream[n % 4], a = 31.7 + n * .6;
+      snap(a - .15);
+      seq(g, "x", a, [[0, px + 70], [.8, sx - 128], [.2, null], [0, sx + 128], [.8, cx - 124]]);
+      seq(g, "y", a, [[0, cy], [.4, cy - 64, E.out], [.4, cy, E.in], [.2, null], [.4, cy - 64, E.out], [.4, cy, E.in]]);
+      seq(g, "o", a, [[.01, 1, E.lin], [.71, null], [.08, 0], [.2, null], [.01, 1, E.lin], [.69, null], [.1, 0]]);
+    }
+
+    /* everyone's phones, each to its own account */
+    to(stat, "k", 39.3, 0, 15);
+    const onPhone = PY.map((y, i) => {
+      const g = init(who(world, i), { x: px + 46, y: y - 82, s: 0 });
+      to(g, "s", 39.0 + i * .15, .45, 1, E.back);
+      return g;
+    });
+    const AX = i => cx - 62 + i * 62, AY = cy + 38;
+    const inCloud = WHO.map((w, i) => {
+      const g = init(who(world, i), { x: AX(i), y: AY, s: 0 });
+      to(g, "s", 39.4 + i * .15, .45, 1, E.back);
+      return g;
+    });
+    WHO.forEach((w, i) => {
+      const g = init(el("g", {}, world), { x: px + 60, y: PY[i], s: .45, o: 0 });
+      el("rect", { x: -28, y: -28, width: 56, height: 56, rx: 9, fill: w[0] }, g);
+      el("path", { d: "M-28 10H28V19a9 9 0 0 1-9 9H-19a9 9 0 0 1-9-9Z", fill: "#000", "fill-opacity": .26 }, g);
+      el("circle", { cx: 0, cy: -5, r: 9, fill: "#fff" }, g);
+      for (let run = 0; run < 2; run++) {
+        const a = 39.9 + i * .45 + run * 2.2, ly = cy + (i - 1) * 46;
+        seq(g, "x", a, [[0, px + 60], [.9, sx - 128], [.15, null], [0, sx + 128], [.9, AX(i)]]);
+        seq(g, "y", a, [[0, PY[i]], [.9, ly], [.15, null], [0, cy], [.45, cy - 60, E.out], [.45, AY, E.in]]);
+        seq(g, "o", a, [[.01, 1, E.lin], [.81, null], [.08, 0], [.15, null], [.01, 1, E.lin], [.74, null], [.15, 0]]);
+        seq(inCloud[i], "s", a + 1.85, [[.15, 1.28, E.out], [.3, 1]]);
+      }
+    });
+
+    /* headline: starts squeezed, opens to full width */
+    const hl = init(el("g", {}, svg), { x: 800, y: 150, o: 0 });
+    const hlT = init(txt("Original quality", { class: "big", "font-size": 76 }, hl), { wdth: 62 });
+    txt("4032 × 3024 in. 4032 × 3024 out.", { class: "soft", y: 50, "font-size": m ? 34 : 30 }, hl);
+    to(hl, "o", 19.0, .3, 1); to(hl, "o", 24.1, .5, 0);
+    to(hlT, "wdth", 19.0, 1.4, m ? 108 : 125, E.expo);
+
+    /* title card */
+    abs(() => {
+      const title = init(el("g", {}, svg), { o: 0 });
+      to(title, "o", .1, .5, 1, E.out); to(title, "o", 1.85, .4, 0, E.in);
+      const tIris = init(iris(title, "#0e141a"), { x: 800, y: 255, s: 0, r: -140 });
+      to(tIris, "s", .1, .9, 5, E.back); to(tIris, "r", .1, 1.5, 0, E.expo);
+      const tName = init(txt("GPMC", { class: "big", "font-size": 124 }, title), { x: 800, y: 478, wdth: 62 });
+      to(tName, "wdth", .2, 1.2, 125, E.expo);
+      init(txt("Your photos, backed up at original quality", { class: "soft", "font-size": 38 }, title), { x: 800, y: 548 });
+    });
+
+    /* end card */
+    const end = init(el("g", {}, svg), { o: 0 });
+    to(end, "o", 45.6, .6, 1, E.out);
+    const eIris = init(iris(end, "#0e141a"), { x: 800, y: 215, s: 0, r: -100 });
+    to(eIris, "s", 45.6, .8, 3.6, E.back); to(eIris, "r", 45.6, 1.3, 0, E.expo);
+    const eT = init(txt("Set it up once.", { class: "big", "font-size": 100 }, end), { x: 800, y: 410, wdth: 62 });
+    to(eT, "wdth", 45.7, 1.3, m ? 96 : 114, E.expo);
+    init(txt("Then just take photos.", { class: "soft", "font-size": 44 }, end), { x: 800, y: 482 });
+
+    finalize();
+  }
+
+  /* ---------- captions and chapters ---------- */
+  const CAPS = [
+    [2.3, 6.4, "Setting up takes a minute. Open Device Sync in GPMC and it shows a code."],
+    [6.6, 10.9, "In Synctrain on your iPhone, tap Add device and point the camera at the code."],
+    [11.1, 14.6, "Pick the Google account for that phone and turn on photo backup. That is the whole setup."],
+    [15.0, 19.1, "Now just take photos. Everything after that is automatic."],
+    [19.6, 23.4, "Synctrain on iPhone, or any Syncthing app on Android, sends each new photo to your computer."],
+    [23.6, 26.6, "It travels encrypted, phone to computer. Your phone keeps every original."],
+    [27.1, 31.5, "GPMC picks the photos up and uploads them to your Google Photos account."],
+    [31.7, 37.4, "The file that left your phone is the file that arrives."],
+    [38.0, 43.5, "Once Google has a photo, your computer clears its copy. Nothing is deleted from your phone."],
+    [44.0, 50.4, "GPMC works quietly in the background and checks for new photos every five minutes."],
+    [51.1, 57.6, "Add the whole family. Each phone backs up to its own Google account."],
+  ];
+  const CHAPS = [[0, "Link"], [14.7, "Shoot"], [19.3, "Sync"], [26.8, "Upload"], [37.8, "Tidy"], [43.8, "Repeat"], [50.8, "Share"]];
+
+  const cap = document.getElementById("cap");
+  const pp = document.getElementById("pp");
+  const scrub = document.getElementById("scrub");
+  const time = document.getElementById("time");
+  const again = document.getElementById("again");
+  const chapList = document.getElementById("chaps");
+  const ICON = {
+    play: '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>',
+    pause: '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg>',
+  };
+
+  const chapBtns = CHAPS.map(([start, name], i) => {
+    const li = document.createElement("li");
+    li.style.setProperty("--g", ((CHAPS[i + 1] ? CHAPS[i + 1][0] : D) - start).toFixed(1));
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "chap"; b.textContent = name;
+    b.addEventListener("click", () => { seek(start); play(true); });
+    li.appendChild(b); chapList.appendChild(li);
+    return b;
+  });
+
+  /* ---------- playback ---------- */
+  const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const narrow = matchMedia("(max-width: 720px)");
+  let t = 0, playing = false, last = 0, started = false, held = false, inView = false;
+
+  const fmt = s => Math.floor(s / 60) + ":" + String(Math.floor(s % 60)).padStart(2, "0");
+  function draw() {
+    render(t);
+    scrub.value = t;
+    scrub.style.setProperty("--p", (t / D * 100).toFixed(2) + "%");
+    time.textContent = fmt(t) + " / " + fmt(D);
+    let text = "", op = 0;
+    for (const [a, b, s] of CAPS) if (t >= a && t <= b) { text = s; op = Math.min(1, (t - a) / .3, (b - t) / .3); }
+    if (cap.textContent !== text) cap.textContent = text;
+    cap.style.opacity = op;
+    let cur = 0;
+    CHAPS.forEach(([start], i) => { if (t >= start) cur = i; });
+    chapBtns.forEach((b, i) => b.setAttribute("aria-current", i === cur ? "true" : "false"));
+  }
+  function ui() {
+    pp.innerHTML = playing ? ICON.pause : ICON.play;
+    pp.setAttribute("aria-label", playing ? "Pause" : "Play");
+    const done = t >= D;
+    again.hidden = playing || !(done || !started);
+    again.textContent = done ? "Watch again" : "Play the explainer";
+  }
+  function tick(now) {
+    if (!playing) return;
+    t += Math.min(.1, (now - last) / 1000); last = now;
+    if (t >= D) { t = D; playing = false; }
+    draw();
+    if (playing) requestAnimationFrame(tick); else ui();
+  }
+  function play(byUser) {
+    if (byUser) held = false;
+    if (playing) return;
+    if (t >= D || (!started && reduce)) t = 0;
+    started = true; playing = true; last = performance.now();
+    ui(); requestAnimationFrame(tick);
+  }
+  function pause(byUser) {
+    if (byUser) held = true;
+    playing = false; ui();
+  }
+  function seek(v) { t = Math.max(0, Math.min(D, v)); started = true; draw(); ui(); }
+  const toggle = () => (playing ? pause(true) : play(true));
+
+  pp.addEventListener("click", toggle);
+  svg.addEventListener("click", toggle);
+  again.addEventListener("click", () => play(true));
+  scrub.addEventListener("input", () => seek(parseFloat(scrub.value)));
+
+  build(narrow.matches);
+  narrow.addEventListener("change", e => { build(e.matches); draw(); });
+
+  if (reduce) { t = 36.4; draw(); started = false; ui(); }
+  else { draw(); ui(); }
+
+  /* play while on screen; stop when scrolled away or the tab is hidden */
+  if ("IntersectionObserver" in window) {
+    new IntersectionObserver(entries => {
+      inView = entries[0].isIntersecting;
+      if (inView && !reduce && !held && t < D) play(false);
+      else if (!inView && playing) pause(false);
+    }, { threshold: .35 }).observe(svg);
+  }
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden && playing) pause(false);
+    else if (!document.hidden && inView && !reduce && !held && started && t < D) play(false);
+  });
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(draw);
+
+  window.film = { seek, play: () => play(true), pause: () => pause(true), duration: D };
+
+  /* ---------- install tabs and copy buttons ---------- */
+  const tabs = [...document.querySelectorAll('[role="tab"]')];
+  const pick = tab => {
+    tabs.forEach(x => {
+      const on = x === tab;
+      x.setAttribute("aria-selected", on);
+      x.tabIndex = on ? 0 : -1;
+      document.getElementById(x.getAttribute("aria-controls")).hidden = !on;
+    });
+  };
+  tabs.forEach((tab, i) => {
+    tab.addEventListener("click", () => pick(tab));
+    tab.addEventListener("keydown", e => {
+      const step = e.key === "ArrowRight" ? 1 : e.key === "ArrowLeft" ? -1 : 0;
+      if (!step) return;
+      const next = tabs[(i + step + tabs.length) % tabs.length];
+      pick(next); next.focus();
+    });
+  });
+  document.querySelectorAll(".copy").forEach(btn => {
+    btn.addEventListener("click", async () => {
+      const code = btn.parentElement.querySelector("code").textContent;
+      try { await navigator.clipboard.writeText(code); btn.textContent = "Copied"; }
+      catch { btn.textContent = "Select and copy"; }
+      setTimeout(() => { btn.textContent = "Copy"; }, 1600);
+    });
+  });
+})();
+</script>
+</body>
+</html>

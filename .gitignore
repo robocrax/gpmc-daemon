@@ -8,6 +8,9 @@ venv/
 data/
 *.db
 *.db-*
+# Windows app build output
+dist/
+windows/build/
 # Local dev / tooling
 .playwright-mcp/
 *.png

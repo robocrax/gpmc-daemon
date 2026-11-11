@@ -1,0 +1,49 @@
+name: Windows app
+
+# Builds GPMC-Setup.exe and GPMC-portable.zip.
+#   - Run it by hand (Actions > Windows app > Run workflow) to get the files as a build artifact.
+#   - Push a v* tag to also publish them on a GitHub release. The landing page links to
+#     releases/latest/download/GPMC-Setup.exe, so the newest release is what people download.
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Build app, portable zip and installer
+        shell: pwsh
+        run: ./windows/build.ps1
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: GPMC-windows
+          path: |
+            dist/GPMC-Setup.exe
+            dist/GPMC-portable.zip
+          if-no-files-found: error
+
+      - name: Publish release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/GPMC-Setup.exe
+            dist/GPMC-portable.zip
+          generate_release_notes: true

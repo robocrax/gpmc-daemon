@@ -1,0 +1,20 @@
+GPMC for Windows includes the following third-party software.
+Licence texts are in this folder.
+
+Syncthing (syncthing\syncthing.exe)
+  Mozilla Public License 2.0. Unmodified official release.
+  Source: https://github.com/syncthing/syncthing
+
+gpmc (Google Photos upload engine)
+  MIT License. Source: https://github.com/xob0t/gpmc
+
+pystray (tray icon)
+  GNU Lesser General Public License v3. Shipped as plain .py files in
+  _internal\pystray so it can be replaced with a modified version.
+  Source: https://github.com/moses-palmer/pystray
+
+Python, FastAPI, Starlette, Uvicorn, Pydantic, httpx, Pillow, pillow-heif,
+qrcode, bcrypt and their dependencies, under their respective open-source
+licences (PSF, MIT, BSD, Apache 2.0, LGPL for libheif via pillow-heif).
+
+GPMC is not affiliated with or endorsed by Google, Syncthing or Synctrain.

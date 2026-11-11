@@ -39,6 +39,20 @@ downscaled. GPMC uses the same API the Android app does, so **you** back up
 
 ## Quick start
 
+**Explainer and downloads:** https://robocrax.github.io/gpmc-daemon/
+
+### Windows app
+
+Download **[GPMC-Setup.exe](https://github.com/robocrax/gpmc-daemon/releases/latest/download/GPMC-Setup.exe)**
+(or the [portable zip](https://github.com/robocrax/gpmc-daemon/releases/latest/download/GPMC-portable.zip))
+and run it. GPMC opens in your browser, sits in the tray by the clock and starts
+when you sign in. Syncthing is built in, so Device Sync works straight away.
+Windows 10/11, 64-bit; the app isn't code-signed yet, so SmartScreen may ask you
+to choose **More info → Run anyway**. Data lives in `%LOCALAPPDATA%\GPMC`.
+
+Build it yourself with `powershell -ExecutionPolicy Bypass -File windows\build.ps1`
+(see [windows/](windows/)).
+
 ### Option A — Proxmox (one command)
 
 Run on your Proxmox host. Creates an unprivileged Debian LXC (random ID, DHCP),
@@ -122,7 +136,7 @@ folder on their own, and GPMC uploads them.
 **On your phone:**
 
 2. Install a Syncthing client — Android: **Syncthing** or **Syncthing-Fork**;
-   iOS: **Möbius Sync**.
+   iOS: **[Synctrain](https://apps.apple.com/us/app/synctrain/id6553985316)** (free; its photo backup feeds the shared folder).
 3. Pair the devices: in the server GUI, **Actions → Show ID** shows a QR code —
    scan it from the phone app to add the server as a remote device. Accept the
    pairing back on the server.
