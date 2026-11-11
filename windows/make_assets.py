@@ -67,7 +67,7 @@ def write_version_info(ver: str) -> Path:
                     fileType=0x1, subtype=0x0, date=(0, 0)),
   kids=[
     StringFileInfo([StringTable('040904B0', [
-      StringStruct('CompanyName', 'Robocrax'),
+      StringStruct('CompanyName', 'RoboCrax'),
       StringStruct('FileDescription', 'GPMC: Google Photos backup'),
       StringStruct('FileVersion', '{ver}'),
       StringStruct('InternalName', 'GPMC'),
